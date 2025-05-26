@@ -21,7 +21,7 @@ const AuthPage = () => {
   // Handle Auth0 errors
   useEffect(() => {
     if (auth0Error) {
-      setError(auth0Error.message);
+      setError(auth0Error.message || 'Authentication error');
     }
   }, [auth0Error]);
 
@@ -120,19 +120,26 @@ const AuthPage = () => {
   const handleGoogleSignIn = async () => {
     try {
       await loginWithRedirect({
-        connection: 'google-oauth2',
-        redirectUri: 'http://localhost:5173',
+        authorizationParams: {
+          connection: 'google-oauth2',
+          redirect_uri: 'http://localhost:5173',
+          screen_hint: 'login',
+        },
       });
     } catch (error) {
-      setError('Failed to initiate Google sign-in. Please try again.');
+      console.error('Google Sign-In Error:', error);
+      setError(`Failed to initiate Google sign-in: ${error.message || 'Unknown error'}`);
     }
   };
 
   const handleFacebookSignIn = async () => {
     try {
       await loginWithRedirect({
-        connection: 'facebook',
-        redirectUri: 'http://localhost:5173',
+        authorizationParams: {
+          connection: 'facebook',
+          redirect_uri: 'http://localhost:5173',
+          screen_hint: 'login',
+        },
       });
     } catch (error) {
       setError('Failed to initiate Facebook sign-in. Please try again.');
@@ -142,8 +149,11 @@ const AuthPage = () => {
   const handleTwitterSignIn = async () => {
     try {
       await loginWithRedirect({
-        connection: 'twitter',
-        redirectUri: 'http://localhost:5173',
+        authorizationParams: {
+          connection: 'twitter',
+          redirect_uri: 'http://localhost:5173',
+          screen_hint: 'login',
+        },
       });
     } catch (error) {
       setError('Failed to initiate Twitter sign-in. Please try again.');
@@ -153,8 +163,11 @@ const AuthPage = () => {
   const handleInstagramSignIn = async () => {
     try {
       await loginWithRedirect({
-        connection: 'instagram',
-        redirectUri: 'http://localhost:5173',
+        authorizationParams: {
+          connection: 'instagram',
+          redirect_uri: 'http://localhost:5173',
+          screen_hint: 'login',
+        },
       });
     } catch (error) {
       setError('Failed to initiate Instagram sign-in. Please try again.');
@@ -171,7 +184,6 @@ const AuthPage = () => {
 
   return (
     <div className={`relative min-h-screen overflow-hidden font-['Poppins'] ${isSignIn ? 'sign-in' : 'sign-up'}`}>
-      {/* Display Auth0 user info if authenticated */}
       {isAuthenticated && (
         <div className="absolute top-4 right-4 flex items-center space-x-4 z-30">
           <p className="text-white">Welcome, {user.name}</p>
@@ -184,7 +196,6 @@ const AuthPage = () => {
         </div>
       )}
 
-      {/* Background Effect */}
       <div
         className={`absolute top-0 right-0 h-screen w-[300vw] transition-all duration-1000 ease-in-out z-10 shadow-2xl ${
           isSignIn ? 'translate-x-0 right-1/2' : 'translate-x-full right-1/2'
@@ -193,7 +204,6 @@ const AuthPage = () => {
       />
 
       <div className="flex flex-wrap h-screen">
-        {/* SIGN UP FORM */}
         <div
           className={`w-1/2 flex items-center justify-center text-center flex-col transition-transform duration-500 ease-in-out z-20 
           md:w-1/2 md:static md:bg-transparent md:rounded-none md:p-0
@@ -269,10 +279,12 @@ const AuthPage = () => {
                 </button>
               </form>
               <label>OR</label>
-
               <button
                 onClick={handleGoogleSignIn}
-                className="w-full py-3 mt-3 bg-white text-gray-700 rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-lg font-medium cursor-pointer flex items-center justify-center gap-3"
+                disabled={isFormLoading}
+                className={`w-full py-3 mt-3 bg-white text-gray-700 rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-lg font-medium cursor-pointer flex items-center justify-center gap-3 ${
+                  isFormLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -282,8 +294,7 @@ const AuthPage = () => {
                 </svg>
                 Continue with Google
               </button>
-
-              <p className="mt-4 text-xs text-grayMonitoring the situation-600">
+              <p className="mt-4 text-xs text-gray-600">
                 <span>Already have an account? </span>
                 <b onClick={toggle} className="text-[#4EA685] cursor-pointer hover:underline">
                   Sign in here
@@ -291,7 +302,6 @@ const AuthPage = () => {
               </p>
             </div>
           </div>
-
           <div
             className={`mt-8 p-4 bg-white rounded-3xl shadow-2xl transform transition-all duration-500 ease-in-out ${
               !isSignIn ? 'scale-100 delay-[1200ms]' : 'scale-0'
@@ -339,7 +349,6 @@ const AuthPage = () => {
           </div>
         </div>
 
-        {/* SIGN IN FORM */}
         <div
           className={`w-1/2 flex items-center justify-center text-center flex-col transition-transform duration-500 ease-in-out z-20
           md:w-1/2 md:static md:bg-transparent md:rounded-none md:p-0
@@ -385,7 +394,7 @@ const AuthPage = () => {
                 <button
                   type="submit"
                   disabled={isFormLoading}
-                  className={`w-full py-3 bg-[#4EA685] text-white rounded-lg hover:bg-[#57B894] transition-colors: text-lg font-medium cursor-pointer ${
+                  className={`w-full py-3 bg-[#4EA685] text-white rounded-lg hover:bg-[#57B894] transition-colors text-lg font-medium cursor-pointer ${
                     isFormLoading ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
@@ -393,10 +402,12 @@ const AuthPage = () => {
                 </button>
               </form>
               <label>OR</label>
-
               <button
                 onClick={handleGoogleSignIn}
-                className="w-full py-3 mt-3 bg-white text-gray-700 rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-lg font-medium cursor-pointer flex items-center justify-center gap-3"
+                disabled={isFormLoading}
+                className={`w-full py-3 mt-3 bg-white text-gray-700 rounded-lg border-2 border-gray-200 hover:border-gray-300 hover:shadow-md transition-all text-lg font-medium cursor-pointer flex items-center justify-center gap-3 ${
+                  isFormLoading ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -406,7 +417,6 @@ const AuthPage = () => {
                 </svg>
                 Continue with Google
               </button>
-
               <p className="mt-4 text-xs text-gray-600">
                 <b className="text-[#4EA685] cursor-pointer hover:underline">Forgot password?</b>
               </p>
@@ -418,7 +428,6 @@ const AuthPage = () => {
               </p>
             </div>
           </div>
-
           <div
             className={`mt-8 p-4 bg-white rounded-3xl shadow-2xl transform transition-all duration-500 ease-in-out ${
               isSignIn ? 'scale-100 delay-[1200ms]' : 'scale-0'
@@ -526,51 +535,41 @@ const AuthPage = () => {
             right: 0 !important;
             width: 100vw !important;
           }
-
           .text-6xl {
             font-size: 2.5rem !important;
             margin: 0.5rem !important;
           }
-
           .mx-16 {
             margin-left: 1rem !important;
             margin-right: 1rem !important;
           }
-
           .w-[30vw] {
             width: 80vw !important;
             height: 200px !important;
           }
-
           .content-text-p {
             display: none !important;
           }
-
           .absolute.top-0.left-0 {
             align-items: flex-start !important;
           }
-
           .absolute.top-0.left-0 .w-1/2 {
             background-color: transparent !important;
             transform: translateY(0) !important;
           }
-
           .social-container {
             box-shadow: none !important;
             margin: 0 !important;
             padding: 0 !important;
           }
         }
-
         @media only screen and (max-width: 425px) {
           .text-6xl {
             font-size: 2rem !important;
           }
-
           .w-[30vw] {
             height: 150px !important;
           }
-
           .text-8xl {
             font-size: 4rem !important;
           }
