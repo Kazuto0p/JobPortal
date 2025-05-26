@@ -1,8 +1,10 @@
 import express from 'express'
-import { Signup } from '../controller/user_controller.js'
+import { logIn, Signup } from '../controller/user_controller.js'
 
 const job = express.Router()
 
 job.post("/Signup",Signup)
+
+job.post("/logIn",logIn)
 
 export default job
