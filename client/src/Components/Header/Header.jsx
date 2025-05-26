@@ -10,7 +10,7 @@ const Header = () => {
             <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
               Home
             </a>
-            <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
+            <a href="/auth" className="text-gray-600 hover:text-blue-600 transition-colors">
               Sign Up
             </a>
             <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">

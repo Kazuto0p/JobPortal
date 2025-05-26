@@ -5,6 +5,7 @@ import Dashboard from './Pages/Dashboard/Dashboard';
 import Applications from './Pages/Application/Applications';
 import SavedJobs from './Pages/Saved/SavedJobs';
 import Profile from './Pages/Profile/Profile';
+import AuthPage from './Pages/AuthPage/AuthPage';
 // import Dashboard from './Components/Pages/Dashboard/Dashboard';
 
 const App = () => {
@@ -16,6 +17,7 @@ const App = () => {
       <Route path="/applications" element={<Applications /> }/>
       <Route path='/savedjobs' element={<SavedJobs />} />
       <Route path='/profile' element={<Profile />}/>
+      <Route path='/auth' element={<AuthPage />}/>
     </Routes>
   );
 };

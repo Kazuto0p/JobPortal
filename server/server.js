@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import connection from './connection.js';
+import job from './Router/router.js';
 
 dotenv.config();
 const app = express();
@@ -17,6 +18,8 @@ const port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
   res.send("Welcome to Kirito's backend setup!");
 });
+
+app.use("/api",job)
 
 connection().then(() => {
   app.listen(port, () => {
