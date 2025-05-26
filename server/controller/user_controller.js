@@ -68,3 +68,18 @@ export async function logIn(req, res) {
         res.status(500).json({ message: "Error signing in", error: error.message });
     }
 }
+
+export async function authsignup (req, res) {
+    try {
+        console.log("authsignup");
+        console.log(req.body);
+
+        const { username, email} = req.body
+        console.log("hiii");
+        const data = await userModel.create({username, email})
+        console.log(data);
+        res.status(201).send(data)
+    } catch (error) {
+        res.status(500).send({message: "failed in store db", error})
+    }
+}
