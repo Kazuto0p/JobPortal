@@ -26,12 +26,27 @@ const AuthPage = () => {
   }, [auth0Error]);
 
   // Redirect after successful Auth0 login
-  useEffect(() => {
-    if (isLoading) return;
-    if (isAuthenticated) {
-      navigate('/dashboard');
+useEffect(() => {
+  const handleGoogleAuth = async () => {
+    if (isAuthenticated && user && !isLoading) {
+      try {
+        const res = await axios.post('http://localhost:3000/api/authsignup', {
+          email: user.email,
+          username: user.name,
+        });
+
+        console.log(res)
+
+      } catch (err) {
+        console.error('Error during Google post-auth check:', err);
+        setError('Error checking user status');
+      }
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  };
+
+  handleGoogleAuth();
+}, [isAuthenticated, isLoading, user, navigate]);
+
 
   // Toggle between sign-in and sign-up
   const toggle = () => {
@@ -69,27 +84,29 @@ const AuthPage = () => {
   };
 
   // Handle sign-up form submission
-  const handleSignUp = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    if (!validateForm(false)) return;
-    setIsFormLoading(true);
-    try {
-      const response = await axios.post('http://localhost:3000/api/Signup', {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-      });
-      setSuccess(response.data.message);
-      setFormData({ username: '', email: '', password: '', confirmPassword: '' });
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error signing up');
-    } finally {
-      setIsFormLoading(false);
-    }
-  };
+const handleSignUp = async (e) => {
+  e.preventDefault();
+  setError('');
+  setSuccess('');
+  if (!validateForm(false)) return;
+  setIsFormLoading(true);
+  try {
+    const response = await axios.post('http://localhost:3000/api/Signup', {
+      username: formData.username,
+      email: formData.email,
+      password: formData.password,
+    });
+    localStorage.setItem("email", formData.email)
+    setSuccess(response.data.message);
+    setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+    navigate('/role'); // ✅ redirect to role after signup
+  } catch (err) {
+    setError(err.response?.data?.message || 'Error signing up');
+  } finally {
+    setIsFormLoading(false);
+  }
+};
+
 
   // Handle sign-in form submission
   const handleSignIn = async (e) => {
