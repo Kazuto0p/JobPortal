@@ -24,6 +24,7 @@ const App = () => {
       <Route path='/auth' element={<AuthPage />}/>
       <Route path='/postjob' element={<PostJob />} />
       <Route path='/role' element={<Role/>} />
+    
     </Routes>
   );
 };

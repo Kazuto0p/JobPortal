@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const PostJob = () => {
-  const { isAuthenticated, isLoading, user, loginWithRedirect } = useAuth0();
+  const { isAuthenticated, isLoading, user } = useAuth0();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     title: '',
@@ -17,25 +17,26 @@ const PostJob = () => {
     requirements: '',
   });
   const [errors, setErrors] = useState({});
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [loading, setLoading] = useState(false); // Fixed initial state to false
 
-  // Handle input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  console.log('isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
+  console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
-    // Clear error for the field when user starts typing
-    setErrors((prev) => ({ ...prev, [name]: '' }));
+    setErrors((prevErrors) => ({ ...prevErrors, [name]: '' }));
   };
 
-  // Validate form
-  const validateForm = () => {
+  const validateFormData = () => {
     const newErrors = {};
     if (!formData.title.trim()) newErrors.title = 'Job title is required';
     if (!formData.company.trim()) newErrors.company = 'Company name is required';
     if (!formData.location.trim()) newErrors.location = 'Location is required';
     if (!formData.salary.trim()) newErrors.salary = 'Salary is required';
-    else if (!/^\d+(\.\d+)?$/.test(formData.salary)) newErrors.salary = 'Enter a valid salary (e.g., 50000)';
+    else if (!/^\$?\d+(\.\d+)?(?:\s*-\s*\$?\d+(\.\d+)?)?(?:\/year)?$/.test(formData.salary))
+      newErrors.salary = 'Enter a valid salary (e.g., 60000 or $80K - $105K/year)';
     if (!formData.experience.trim()) newErrors.experience = 'Experience level is required';
     if (!formData.role.trim()) newErrors.role = 'Role is required';
     if (!formData.description.trim()) newErrors.description = 'Job description is required';
@@ -43,15 +44,14 @@ const PostJob = () => {
     return newErrors;
   };
 
-  // Handle form submission
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setErrors({});
-    setSuccess('');
+    setSuccessMessage('');
     setLoading(true);
+    console.log('Form submitted, formData:', formData);
 
-    // Validate form
-    const validationErrors = validateForm();
+    const validationErrors = validateFormData();
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       setLoading(false);
@@ -59,20 +59,25 @@ const PostJob = () => {
     }
 
     try {
+      console.log('Sending request to:', `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/jobs`);
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/jobs`,
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/jobs`,
         {
-          ...formData,
-          postedBy: user?.sub, // Auth0 user ID
-          postedByEmail: user?.email,
+          jobTitle: formData.title,
+          company: formData.company,
+          location: formData.location,
+          salary: formData.salary,
+          experiencelvl: formData.experience,
+          role: formData.role,
+          jobdescription: formData.description,
+          requirements: formData.requirements,
+          postedBy: user?.sub || null,
+          postedByEmail: user?.email || null,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`, // Optional: Include custom JWT if used
-          },
-        }
+        { timeout: 5000 } // Added timeout to prevent hanging
       );
-      setSuccess('Job posted successfully!');
+      console.log('Response:', response.data);
+      setSuccessMessage('Job posted successfully!');
       setFormData({
         title: '',
         company: '',
@@ -83,23 +88,23 @@ const PostJob = () => {
         description: '',
         requirements: '',
       });
-      setTimeout(() => navigate('/dashboard'), 2000); // Redirect after success
+      setTimeout(() => navigate('/dashboard'), 2000);
     } catch (error) {
-      setErrors({
-        general: error.response?.data?.message || 'Error posting job. Please try again.',
-      });
+      console.error('Submission error:', error);
+      let errorMessage = 'Error posting job. Please try again.';
+      if (error.response) {
+        errorMessage = error.response.data?.message || `Server error: ${error.response.status}`;
+      } else if (error.request) {
+        errorMessage = 'No response from server. Check if backend is running on port 3000.';
+      } else {
+        errorMessage = error.message;
+      }
+      setErrors({ general: errorMessage });
     } finally {
       setLoading(false);
     }
   };
 
-  // Redirect to login if not authenticated
-  // if (!isLoading && !isAuthenticated) {
-  //   // loginWithRedirect();
-  //   return null;
-  // }
-
-  // Loading state
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -110,8 +115,10 @@ const PostJob = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-3xl font-bold text-primary mb-6">Post a Job</h1>
-      {success && <p className="text-green-600 mb-4">{success}</p>}
+      <Link to="/">
+        <h1 className="text-3xl font-bold text-blue-600 mb-6">Post a Job</h1>
+      </Link>
+      {successMessage && <p className="text-green-600 mb-4">{successMessage}</p>}
       {errors.general && <p className="text-red-600 mb-4">{errors.general}</p>}
       <form onSubmit={handleSubmit} className="bg-white shadow-lg rounded-lg p-6">
         <div className="mb-4">
@@ -124,7 +131,7 @@ const PostJob = () => {
             name="title"
             value={formData.title}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             placeholder="e.g., Software Engineer"
           />
           {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
@@ -140,7 +147,7 @@ const PostJob = () => {
             name="company"
             value={formData.company}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             placeholder="e.g., Tech Corp"
           />
           {errors.company && <p className="text-red-500 text-sm mt-1">{errors.company}</p>}
@@ -156,7 +163,7 @@ const PostJob = () => {
             name="location"
             value={formData.location}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             placeholder="e.g., San Francisco, CA"
           />
           {errors.location && <p className="text-red-500 text-sm mt-1">{errors.location}</p>}
@@ -172,8 +179,8 @@ const PostJob = () => {
             name="salary"
             value={formData.salary}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
-            placeholder="e.g., 60000"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
+            placeholder="e.g., 60000 or $80K - $105K/year"
           />
           {errors.salary && <p className="text-red-500 text-sm mt-1">{errors.salary}</p>}
         </div>
@@ -187,7 +194,7 @@ const PostJob = () => {
             name="experience"
             value={formData.experience}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
           >
             <option value="">Select experience level</option>
             <option value="Entry Level">Entry Level</option>
@@ -207,7 +214,7 @@ const PostJob = () => {
             name="role"
             value={formData.role}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             placeholder="e.g., Frontend Developer"
           />
           {errors.role && <p className="text-red-500 text-sm mt-1">{errors.role}</p>}
@@ -222,7 +229,7 @@ const PostJob = () => {
             name="description"
             value={formData.description}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             rows="5"
             placeholder="Describe the job responsibilities and details"
           ></textarea>
@@ -238,18 +245,18 @@ const PostJob = () => {
             name="requirements"
             value={formData.requirements}
             onChange={handleInputChange}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-primary"
+            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             rows="5"
             placeholder="List the required skills and qualifications"
           ></textarea>
           {errors.requirements && <p className="text-red-500 text-sm mt-1">{errors.requirements}</p>}
         </div>
 
-        <div className="flex space-x-4">
+        <div className="flex space-x-4 border-2 border-red-500">
           <button
             type="submit"
             disabled={loading}
-            className={`flex-1 py-3 bg-primary text-white rounded-lg hover:bg-primaryHover transition-all transform hover:scale-105 ${
+            className={`flex-1 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all transform hover:scale-105 ${
               loading ? 'opacity-50 cursor-not-allowed' : ''
             }`}
           >
