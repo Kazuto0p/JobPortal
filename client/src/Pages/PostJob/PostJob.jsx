@@ -94,10 +94,10 @@ const PostJob = () => {
   };
 
   // Redirect to login if not authenticated
-  if (!isLoading && !isAuthenticated) {
-    loginWithRedirect();
-    return null;
-  }
+  // if (!isLoading && !isAuthenticated) {
+  //   // loginWithRedirect();
+  //   return null;
+  // }
 
   // Loading state
   if (isLoading) {

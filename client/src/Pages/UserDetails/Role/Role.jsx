@@ -2,40 +2,43 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // import { useAuth0 } from '@auth0/auth0-react';
 import axios from 'axios';
+import {jwtDecode} from 'jwt-decode'; 
 
 const Role = () => {
   const [role, setRole] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [user, setUser] = useState([])
-//   const { user, isAuthenticated } = useAuth0();
+  //   const { user, isAuthenticated } = useAuth0();
   const navigate = useNavigate();
 
 
-  const loadData = async()=>{
+  const loadData = async () => {
     try {
-        const email = localStorage.getItem("email")
-        const res = await axios.get("http://localhost:3000/api/getUser", {email})
-        console.log(res)
-        setUser(res.data)
+      const token = localStorage.getItem("@@auth0spajs@@::zCYOqOnq8GfzctlNsk2YNxBZKS7srqEk::@@user@@") || localStorage.getItem("token")
+      const decoded = jwtDecode(token);
+      const email = decoded.email;
+      const res = await axios.post("http://localhost:3000/api/getUser", { email })
+      console.log(res)
+      setUser(res.data)
     } catch (error) {
-        console.log(error)
+      console.log(error)
     }
   }
 
-  useEffect(()=>{
+  useEffect(() => {
     loadData()
-  },[])
+  }, [])
 
 
   const handleChange = (e) => {
     setRole(e.target.value);
-    setError(''); // Clear any previous errors
+    setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!role) {
       setError("Please select a role");
       return;
@@ -48,13 +51,16 @@ const Role = () => {
 
     setIsLoading(true);
     setError('');
-
+    console.log(role, user.email)
     try {
       // Update user role in database
+      console.log("haiii inside put ")
       const response = await axios.put('http://localhost:3000/api/updateRole', {
         email: user.email,
         role: role
       });
+
+
 
       if (response.status === 200) {
         // Role updated successfully, redirect to dashboard
@@ -86,7 +92,7 @@ const Role = () => {
                 {error}
               </div>
             )}
-            
+
             <div className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
               <input
                 id="jobSeeker"
@@ -124,11 +130,10 @@ const Role = () => {
             <button
               type="submit"
               disabled={isLoading || !role}
-              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${
-                isLoading || !role 
-                  ? 'bg-gray-400 cursor-not-allowed' 
+              className={`group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white ${isLoading || !role
+                  ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-              } transition-colors`}
+                } transition-colors`}
             >
               {isLoading ? 'Updating...' : 'Continue'}
             </button>

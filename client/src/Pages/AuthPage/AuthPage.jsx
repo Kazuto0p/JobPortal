@@ -33,9 +33,12 @@ useEffect(() => {
         const res = await axios.post('http://localhost:3000/api/authsignup', {
           email: user.email,
           username: user.name,
+
+          
         });
 
         console.log(res)
+        console.log(email)
 
       } catch (err) {
         console.error('Error during Google post-auth check:', err);
@@ -95,8 +98,10 @@ const handleSignUp = async (e) => {
       username: formData.username,
       email: formData.email,
       password: formData.password,
-    });
+    }); 
     localStorage.setItem("email", formData.email)
+    console.log(response)
+    localStorage.setItem("token",response.data.token)
     setSuccess(response.data.message);
     setFormData({ username: '', email: '', password: '', confirmPassword: '' });
     navigate('/role'); // ✅ redirect to role after signup
@@ -125,7 +130,7 @@ const handleSignUp = async (e) => {
         localStorage.setItem('token', response.data.token);
       }
       setFormData({ username: '', email: '', password: '', confirmPassword: '' });
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Error signing in');
     } finally {

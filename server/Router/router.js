@@ -8,7 +8,7 @@ job.post("/authsignup",authsignup)
 
 job.post("/logIn",logIn)
 
-job.get("/getUser",getUser)
+job.post("/getUser",getUser)
 job.get("/getusers",getusers)
 job.put("/updateRole",updateRole)
 
