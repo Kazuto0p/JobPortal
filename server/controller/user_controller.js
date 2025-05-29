@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import userModel from "../models/user.model.js"; // Adjust path to your model
 import jwt from "jsonwebtoken"; // Add JWT for authentication
+import mongoose from "mongoose";
+import Job from "../models/job.model.js";
 
 export async function Signup(req, res) {
   try {
@@ -34,8 +36,8 @@ export async function Signup(req, res) {
         { expiresIn: "1h" }
     );
     
-    console.log(data);
-    console.log(token);
+    // console.log(data);
+    // console.log(token);
     res.status(201).json({ message: "User Created Successfully", token });
   } catch (error) {
     console.error(error);
@@ -83,22 +85,22 @@ export async function logIn(req, res) {
 export async function authsignup(req, res) {
   try {
     console.log("authsignup");
-    console.log(req.body);
+    // console.log(req.body);
 
     const { username, email } = req.body;
-    console.log("hiii");
+  
     const userExist = await userModel.findOne({ email });
-    console.log(userExist);
-    console.log("hiii");
+    // console.log(userExist);
+    // console.log("hiii");
 
     if (userExist) {
       if (userExist.auth0) return res.status(200).send({ data: userExist });
     }
 
-    console.log("hiii");
+    // console.log("hiii");
 
     const data = await userModel.create({ username, email, auth0: true });
-    console.log(data);
+    // console.log(data);
     res.status(201).send(data);
   } catch (error) {
     res.status(500).send({ message: "failed in store db", error });
@@ -107,11 +109,11 @@ export async function authsignup(req, res) {
 
 export async function getUser(req, res) {
   try {
-    console.log("inside of getUser function");
-    console.log(req.body);
+    // console.log("inside of getUser function");
+    // console.log(req.body);
     const email = req.body;
     const data = await userModel.findOne(email);
-    console.log(data);
+    // console.log(data);
     if (!data) {
       return res.status(404).json({ message: "Not Found" });
     }
@@ -147,7 +149,7 @@ export async function updateRole(req, res) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    console.log(`Role updated for user: ${email} to ${role}`);
+    // console.log(`Role updated for user: ${email} to ${role}`);
     res.status(200).json({
       message: "Role updated successfully",
       user: {
@@ -162,50 +164,102 @@ export async function updateRole(req, res) {
   }
 }
 
-// route: POST /api/checkOrCreateUser
-
-// export async function checkOrCreateUser(req, res) {
-//     console.log(req.body);
-//     try {
-//         const { email, username } = req.body;
-
-//         if (!email || !username) {
-//             return res.status(400).json({ message: 'Email and username are required' });
-//         }
-
-//         // Normalize email
-//         const normalizedEmail = email.toLowerCase();
-
-//         // Check for existing user
-//         const existingUser = await userModel.findOne({ email: normalizedEmail });
-
-//         if (existingUser) {
-//             return res.status(200).json({ newUser: false });
-//         }
-
-//         // Create a new user
-//         await userModel.create({
-//             email: normalizedEmail,
-//             username,
-//             password: '', // No password for social login
-//             role: '',      // Will be selected later
-//         });
-
-//         console.log("req.body");
-//     return res.status(201).json({ newUser: true });
-//   }
-//    catch (err) {
-//     console.error('checkOrCreateUser error:', err);
-//     return res.status(500).json({ message: 'Server error' });
-//   }
-// }
 
 export async function getusers(req, res) {
   try {
-    console.log("inside of get users function");
+    // console.log("inside of get users function");
     const data = await userModel.find();
     res.status(200).send(data);
   } catch (error) {
     res.status(500).send({ message: "failed to fetch data", error });
+  }
+}
+
+
+export async function savedJobs(req, res) {
+  console.log("inside saved jobs");
+  try {
+    const { email, jobId } = req.body; // expect jobId instead of whole data
+    console.log(req.body);
+
+    if (!email || !jobId) {
+      return res.status(400).json({ message: "Email or jobId is missing" });
+    }
+
+    // Validate jobId as a valid ObjectId string
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json({ message: "Invalid job ID" });
+    }
+
+    // Add only the jobId (string) to the savedjobs array
+    const updatedUser = await userModel.findOneAndUpdate(
+      { email: email },
+      { $addToSet: { savedjobs: jobId } }, // save just jobId string
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Job saved successfully", savedjobs: updatedUser.savedjobs });
+  } catch (error) {
+    console.error("Error saving job:", error);
+    res.status(500).json({ message: "Error saving job", error: error.message });
+  }
+}
+
+
+
+export async function getSavedJobs(req, res) {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email missing" });
+
+    const user = await userModel.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // savedjobs contains job IDs as strings
+    const jobIds = user.savedjobs.map(id => new mongoose.Types.ObjectId(id));
+
+
+    // fetch full jobs from Job collection
+    const jobs = await Job.find({ _id: { $in: jobIds } });
+
+    res.status(200).json({ savedJobs: jobs });
+  } catch (error) {
+    console.error("Error fetching saved jobs:", error);
+    res.status(500).json({ message: "Error fetching saved jobs", error: error.message });
+  }
+}
+
+
+export async function removeSavedJob(req, res) {
+  try {
+    const { email, jobId } = req.body;
+
+    if (!email || !jobId) {
+      return res.status(400).json({ message: "Email or jobId is missing" });
+    }
+
+    // Validate jobId as ObjectId string (optional, if you want strict validation)
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json({ message: "Invalid job ID" });
+    }
+
+    const updatedUser = await userModel.findOneAndUpdate(
+      { email },
+      { $pull: { savedjobs: jobId } },  // remove jobId from array
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.status(200).json({ message: "Job removed successfully", savedjobs: updatedUser.savedjobs });
+  } catch (error) {
+    console.error("Error removing saved job:", error);
+    res.status(500).json({ message: "Error removing saved job", error: error.message });
   }
 }

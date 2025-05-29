@@ -18,7 +18,7 @@ const PostJob = () => {
   });
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
-  const [loading, setLoading] = useState(false); // Fixed initial state to false
+  const [loading, setLoading] = useState(false);
 
   console.log('isLoading:', isLoading, 'isAuthenticated:', isAuthenticated);
   console.log('API URL:', import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
@@ -74,7 +74,7 @@ const PostJob = () => {
           postedBy: user?.sub || null,
           postedByEmail: user?.email || null,
         },
-        { timeout: 5000 } // Added timeout to prevent hanging
+        { timeout: 5000 }
       );
       console.log('Response:', response.data);
       setSuccessMessage('Job posted successfully!');
@@ -264,7 +264,7 @@ const PostJob = () => {
           </button>
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/')}
             className="flex-1 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
           >
             Cancel

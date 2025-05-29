@@ -1,5 +1,5 @@
 import express from 'express'
-import { authsignup,  getUser, getusers, logIn, Signup, updateRole } from '../controller/user_controller.js'
+import { authsignup,  getSavedJobs,  getUser, getusers, logIn, removeSavedJob, savedJobs, Signup, updateRole } from '../controller/user_controller.js'
 import { createJob, getAllJobs } from '../controller/job_post.js'
 
 const job = express.Router()
@@ -16,6 +16,10 @@ job.put("/updateRole",updateRole)
 
 job.post('/jobs', createJob)
 job.get("/jobs", getAllJobs)
+job.post("/savedJobs", savedJobs)
+
+job.post("/getSavedJobs", getSavedJobs)
+job.post('/removeSavedJob', removeSavedJob);
 
 // job.post("/checkOrCreateUser",checkOrCreateUser)
 export default job
