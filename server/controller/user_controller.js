@@ -232,8 +232,6 @@ export async function getSavedJobs(req, res) {
     res.status(500).json({ message: "Error fetching saved jobs", error: error.message });
   }
 }
-
-
 export async function removeSavedJob(req, res) {
   try {
     const { email, jobId } = req.body;
@@ -242,14 +240,21 @@ export async function removeSavedJob(req, res) {
       return res.status(400).json({ message: "Email or jobId is missing" });
     }
 
-    // Validate jobId as ObjectId string (optional, if you want strict validation)
+    // Validate jobId format (24 hex chars for ObjectId)
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
-      return res.status(400).json({ message: "Invalid job ID" });
+      return res.status(400).json({ message: "Invalid job ID format" });
     }
 
+    const jobIdStr = jobId.toString();
+
+    // Log before update
+    const userBefore = await userModel.findOne({ email }).lean();
+    console.log("Before update savedjobs:", userBefore?.savedjobs);
+
+    // Pull jobId from savedjobs array
     const updatedUser = await userModel.findOneAndUpdate(
       { email },
-      { $pull: { savedjobs: jobId } },  // remove jobId from array
+      { $pull: { savedjobs: jobIdStr } },
       { new: true }
     );
 
@@ -257,9 +262,18 @@ export async function removeSavedJob(req, res) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({ message: "Job removed successfully", savedjobs: updatedUser.savedjobs });
+    // Log after update
+    console.log("After update savedjobs:", updatedUser.savedjobs);
+
+    return res.status(200).json({
+      message: "Job removed successfully",
+      savedJobs: updatedUser.savedjobs,
+    });
   } catch (error) {
     console.error("Error removing saved job:", error);
-    res.status(500).json({ message: "Error removing saved job", error: error.message });
+    return res.status(500).json({
+      message: "Error removing saved job",
+      error: error.message,
+    });
   }
 }
