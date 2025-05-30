@@ -3,9 +3,11 @@ import { User, Mail, Lock, Facebook, Twitter, Instagram } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+import { useUser } from '../../UserContext';
 
 const AuthPage = () => {
-  const { loginWithRedirect, logout, isAuthenticated, user, isLoading, error: auth0Error } = useAuth0();
+  const { loginWithRedirect, logout, isAuthenticated, user, isLoading, error: auth0Error, getAccessTokenSilently } = useAuth0();
+  const { setUserData } = useUser();
   const [isSignIn, setIsSignIn] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -30,15 +32,45 @@ const AuthPage = () => {
     const handleGoogleAuth = async () => {
       if (isAuthenticated && user && !isLoading) {
         try {
-          const res = await axios.post('http://localhost:3000/api/authsignup', {
-            email: user.email,
-            username: user.name
-          });
+          // Try to fetch user first
+          const token = await getAccessTokenSilently();
+          try {
+            const userRes = await axios.post(
+              `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/users`,
+              { email: user.email },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            
+            const userData = userRes.data.data || userRes.data;
+            setUserData(userData);
+            
+            // If user exists but no role, go to role selection
+            if (!userData.role) {
+              navigate('/role');
+            } else {
+              navigate('/');
+            }
+          } catch (error) {
+            // If user doesn't exist, create them
+            if (error.response?.status === 404) {
+              const res = await axios.post(
+                `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/authsignup`,
+                {
+                  email: user.email,
+                  username: user.name || user.email.split('@')[0],
+                  auth0: true
+                }
+              );
 
-          console.log('Auth signup response:', res);
-          
-          if (res.status === 201) {
-            navigate('/role');
+              console.log('Auth signup response:', res);
+              
+              if (res.status === 201) {
+                setUserData(res.data.data);
+                navigate('/role');
+              }
+            } else {
+              throw error;
+            }
           }
         } catch (err) {
           console.error('Error during Google post-auth check:', err);
@@ -98,12 +130,19 @@ const AuthPage = () => {
         email: formData.email,
         password: formData.password,
       }); 
-      localStorage.setItem("email", formData.email)
-      console.log(response)
-      localStorage.setItem("token",response.data.token)
+      localStorage.setItem("email", formData.email);
+      console.log(response);
+      localStorage.setItem("token", response.data.token);
+      
+      // Set user data in context
+      if (response.data.data) {
+        setUserData(response.data.data);
+      }
+      
       setSuccess(response.data.message);
       setFormData({ username: '', email: '', password: '', confirmPassword: '' });
-      navigate('/role'); // ✅ redirect to role after signup
+      // Always navigate to role page for new users
+      navigate('/role');
     } catch (err) {
       setError(err.response?.data?.message || 'Error signing up');
     } finally {
@@ -119,16 +158,34 @@ const AuthPage = () => {
     if (!validateForm(true)) return;
     setIsFormLoading(true);
     try {
-      const response = await axios.post('http://localhost:3000/api/logIn', {
+      const response = await axios.post('http://localhost:3000/api/login', {
         email: formData.email,
         password: formData.password,
       });
       setSuccess(response.data.message);
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
+        localStorage.setItem('email', formData.email);
+        
+        // Fetch user data after successful login
+        const userResponse = await axios.post('http://localhost:3000/api/users', {
+          email: formData.email
+        }, {
+          headers: {
+            Authorization: `Bearer ${response.data.token}`
+          }
+        });
+        const userData = userResponse.data.data || userResponse.data;
+        setUserData(userData);
+        
+        // Navigate based on user state
+        if (!userData.role) {
+          navigate('/role');
+        } else {
+          navigate('/');
+        }
       }
       setFormData({ username: '', email: '', password: '', confirmPassword: '' });
-      navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Error signing in');
     } finally {

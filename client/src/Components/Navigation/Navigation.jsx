@@ -4,12 +4,24 @@ import { useAuth0 } from "@auth0/auth0-react";
 import { useUser } from "../../UserContext";
 
 const Navigation = () => {
-  const { isAuthenticated, isLoading, loginWithRedirect } = useAuth0();
-  const { userData } = useUser();
+  const { isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
+  const { userData, setUserData } = useUser();
   const navigate = useNavigate();
 
   console.log("Navigation userData:", userData);
   console.log("userData role:", userData?.role);
+
+  const handleLogout = () => {
+    if (isAuthenticated) {
+      // Auth0 logout
+      logout({ returnTo: window.location.origin });
+    } else {
+      // Normal logout
+      localStorage.removeItem('token');
+      setUserData(null);
+      navigate('/');
+    }
+  };
 
   if (isLoading) return <div>Loading...</div>;
   if (!isAuthenticated && !userData) {
@@ -35,6 +47,12 @@ const Navigation = () => {
           Recruiter Portal
         </Link>
       )}
+      <button
+        onClick={handleLogout}
+        className="ml-auto text-red-600 hover:text-red-700"
+      >
+        Logout
+      </button>
     </div>
   );
 };

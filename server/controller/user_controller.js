@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken"; // Add JWT for authentication
 import mongoose from "mongoose";
 import Job from "../models/job.model.js";
 
+// Define JWT secret consistently
+const JWT_SECRET = process.env.JWT_KEY || "your_jwt_secret";
+
 export async function Signup(req, res) {
   try {
     const { email, password, username, role } = req.body;
@@ -22,22 +25,27 @@ export async function Signup(req, res) {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user with jobSeeker role if not specified
+    // Create new user without a role
     const data = await userModel.create({
       email,
       username,
       password: hashedPassword,
-      role: role || 'jobSeeker' // Set default role as jobSeeker if not provided
+      role: null // Don't set a default role, let user choose
     });
 
     // Generate JWT token
     const token = jwt.sign(
       { userId: data._id, email: data.email },
-      process.env.JWT_SECRET || 'your-secret-key',
+      JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.status(201).json({ message: "User created successfully", token, data });
+    res.status(201).json({ 
+      message: "User created successfully", 
+      token, 
+      data,
+      needsRole: true // Add this flag to indicate role selection is needed
+    });
   } catch (error) {
     console.error("Error in Signup:", error);
     res.status(500).json({ message: "Error creating user", error: error.message });
@@ -67,14 +75,18 @@ export async function logIn(req, res) {
       return res.status(400).json({ message: "Password is incorrect" });
     }
 
-    // Generate JWT token (optional, for secure authentication)
+    // Generate JWT token with consistent secret
     const token = jwt.sign(
       { userId: userExist._id, email: userExist.email },
-      process.env.JWT_SECRET || "your_jwt_secret", // Use environment variable in production
-      { expiresIn: "1h" }
+      JWT_SECRET,
+      { expiresIn: "24h" }
     );
 
-    res.status(200).json({ message: "Logged in successfully", token });
+    res.status(200).json({ 
+      message: "Logged in successfully", 
+      token,
+      data: userExist // Include user data in response
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Error signing in", error: error.message });
@@ -89,18 +101,34 @@ export async function authsignup(req, res) {
     const userExist = await userModel.findOne({ email });
 
     if (userExist) {
-      if (userExist.auth0) return res.status(200).send({ data: userExist });
+      // If user exists and has a role, return as is
+      if (userExist.auth0 && userExist.role) {
+        return res.status(200).send({ 
+          data: userExist,
+          needsRole: false
+        });
+      }
+      // If user exists but has no role, indicate role selection needed
+      if (userExist.auth0) {
+        return res.status(200).send({ 
+          data: userExist,
+          needsRole: true
+        });
+      }
     }
 
-    // Create new user with jobSeeker role if not specified
+    // Create new user without a role
     const data = await userModel.create({ 
       username, 
       email, 
       auth0: true,
-      role: role || 'jobSeeker' // Set default role as jobSeeker if not provided
+      role: null // Don't set a default role, let user choose
     });
     
-    res.status(201).send(data);
+    res.status(201).send({
+      data,
+      needsRole: true // Indicate that role selection is needed
+    });
   } catch (error) {
     console.error("Error in authsignup:", error);
     res.status(500).send({ message: "failed in store db", error: error.message });
@@ -131,42 +159,51 @@ export async function getUser(req, res) {
 export async function updateRole(req, res) {
   try {
     const { email, role } = req.body;
+    console.log('Attempting to update role:', { email, role });
 
     if (!email || !role) {
+      console.log('Missing required fields:', { email, role });
       return res.status(400).json({ message: "Email and role are required" });
     }
 
     if (!["jobSeeker", "recruiter"].includes(role)) {
+      console.log('Invalid role provided:', role);
       return res
         .status(400)
         .json({ message: "Invalid role. Must be 'jobSeeker' or 'recruiter'" });
     }
 
-    const updatedUser = await userModel.findOneAndUpdate(
-      { email: email },
-      { role: role },
-      { new: true }
-    );
-
-    if (!updatedUser) {
+    // Find user first to verify they exist
+    const existingUser = await userModel.findOne({ email });
+    if (!existingUser) {
+      console.log('User not found for email:', email);
       return res.status(404).json({ message: "User not found" });
     }
 
-    // console.log(`Role updated for user: ${email} to ${role}`);
+    console.log('Current user state:', existingUser);
+
+    const updatedUser = await userModel.findOneAndUpdate(
+      { email: email },
+      { 
+        $set: {
+          role: role,
+          profileComplete: false // Reset profile completion when role changes
+        }
+      },
+      { new: true }
+    );
+
+    console.log('Role update result:', updatedUser);
     res.status(200).json({
       message: "Role updated successfully",
-      user: {
-        email: updatedUser.email,
-        username: updatedUser.username,
-        role: updatedUser.role,
-      },
+      data: updatedUser,
+      needsProfile: true // Always require profile completion after role change
     });
   } catch (error) {
     console.error("Error updating role:", error);
-    res.status(500).json({ message: "Error updating role" });
+    res.status(500).json({ message: "Error updating role", error: error.message });
   }
 }
-
 
 export async function getusers(req, res) {
   try {
@@ -177,7 +214,6 @@ export async function getusers(req, res) {
     res.status(500).send({ message: "failed to fetch data", error });
   }
 }
-
 
 export async function savedJobs(req, res) {
   console.log("inside saved jobs");
@@ -212,8 +248,6 @@ export async function savedJobs(req, res) {
   }
 }
 
-
-
 export async function getSavedJobs(req, res) {
   try {
     const { email } = req.body;
@@ -225,7 +259,6 @@ export async function getSavedJobs(req, res) {
     // savedjobs contains job IDs as strings
     const jobIds = user.savedjobs.map(id => new mongoose.Types.ObjectId(id));
 
-
     // fetch full jobs from Job collection
     const jobs = await Job.find({ _id: { $in: jobIds } });
 
@@ -235,6 +268,7 @@ export async function getSavedJobs(req, res) {
     res.status(500).json({ message: "Error fetching saved jobs", error: error.message });
   }
 }
+
 export async function removeSavedJob(req, res) {
   try {
     const { email, jobId } = req.body;
@@ -278,5 +312,49 @@ export async function removeSavedJob(req, res) {
       message: "Error removing saved job",
       error: error.message,
     });
+  }
+}
+
+export async function updateProfile(req, res) {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    console.log('Updating profile for user:', id);
+    console.log('Update data:', updates);
+
+    // If there's a file uploaded, add its path
+    if (req.file) {
+      updates.profilepicture = req.file.path;
+    }
+
+    // Find user first to preserve existing data
+    const existingUser = await userModel.findById(id);
+    if (!existingUser) {
+      console.log('User not found:', id);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Preserve role if not explicitly updated
+    if (!updates.role) {
+      updates.role = existingUser.role;
+    }
+
+    // Set profileComplete to true when updating profile
+    updates.profileComplete = true;
+
+    const user = await userModel.findByIdAndUpdate(
+      id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    );
+
+    console.log('Profile updated successfully:', user);
+    res.json({ data: user });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: 'Validation error', error: error.message });
+    }
+    res.status(500).json({ message: 'Error updating profile', error: error.message });
   }
 }

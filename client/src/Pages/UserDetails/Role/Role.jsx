@@ -11,46 +11,26 @@ const Role = () => {
   const [error, setError] = useState('');
   const [user, setUser] = useState(null);
   const { getAccessTokenSilently, isAuthenticated } = useAuth0();
-  const { userData, updateUserData } = useUser();
+  const { userData, setUserData, isFetching } = useUser();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Get email either from Auth0 user or local userData
-        const email = userData?.email;
-        if (!email) {
-          console.error('No email found');
-          navigate('/auth');
-          return;
-        }
-
-        const token = await getAccessTokenSilently();
-        const res = await axios.post(
-          `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/users`, 
-          { email },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log('User data loaded:', res.data);
-        setUser(res.data);
-        
-        // If user already has a role, redirect to home
-        if (res.data.role) {
-          navigate('/');
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        setError('Failed to load user data');
-        if (error.response?.status === 401) {
-          navigate('/auth');
-        }
-      }
-    };
-
-    if (!isLoading) {
-      loadData();
+    // If user already has a role and profile is complete, redirect to home
+    if (userData?.role && userData?.profileComplete) {
+      navigate('/');
+      return;
     }
-  }, [userData, navigate, getAccessTokenSilently]);
+    // If user has role but profile is not complete, redirect to profile
+    if (userData?.role && !userData?.profileComplete) {
+      navigate('/profile');
+      return;
+    }
+    
+    // Set initial user data if available
+    if (userData && !user) {
+      setUser(userData);
+    }
+  }, [userData, navigate]);
 
   const handleChange = (e) => {
     setRole(e.target.value);
@@ -65,7 +45,7 @@ const Role = () => {
       return;
     }
 
-    if (!user?.email) {
+    if (!userData?.email) {
       setError("User email not found");
       return;
     }
@@ -74,28 +54,35 @@ const Role = () => {
     setError('');
     
     try {
-      const token = await getAccessTokenSilently();
+      const token = isAuthenticated ? await getAccessTokenSilently() : localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
       const response = await axios.put(
-        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/updateRole`,
+        `${baseUrl}/updateRole`,
         {
-          email: user.email,
+          email: userData.email,
           role: role
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         }
       );
 
-      if (response.status === 200) {
-        // Update local user data
-        updateUserData({ ...user, role });
+      if (response.status === 200 && response.data) {
+        // Update local user data with the response data to ensure we have the latest state
+        const updatedUser = response.data.data;
+        setUserData(updatedUser);
         toast.success('Role updated successfully');
-        navigate('/');
+        // Redirect to profile page for completing profile
+        navigate('/profile');
       }
     } catch (err) {
       console.error("Role update error:", err);
-      setError(err.response?.data?.message || "Failed to update role");
-      toast.error(err.response?.data?.message || "Failed to update role");
+      const errorMessage = err.response?.data?.message || "Failed to update role";
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
