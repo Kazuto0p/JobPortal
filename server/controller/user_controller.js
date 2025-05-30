@@ -22,26 +22,25 @@ export async function Signup(req, res) {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
+    // Create new user with jobSeeker role if not specified
     const data = await userModel.create({
       email,
       username,
       password: hashedPassword,
+      role: role || 'jobSeeker' // Set default role as jobSeeker if not provided
     });
 
-    
+    // Generate JWT token
     const token = jwt.sign(
-        { email: data.email },
-        process.env.JWT_SECRET || "your_jwt_secret", // Use environment variable in production
-        { expiresIn: "1h" }
+      { userId: data._id, email: data.email },
+      process.env.JWT_SECRET || 'your-secret-key',
+      { expiresIn: '24h' }
     );
-    
-    // console.log(data);
-    // console.log(token);
-    res.status(201).json({ message: "User Created Successfully", token });
+
+    res.status(201).json({ message: "User created successfully", token, data });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error in creating user" });
+    console.error("Error in Signup:", error);
+    res.status(500).json({ message: "Error creating user", error: error.message });
   }
 }
 
@@ -85,43 +84,47 @@ export async function logIn(req, res) {
 export async function authsignup(req, res) {
   try {
     console.log("authsignup");
-    // console.log(req.body);
-
-    const { username, email } = req.body;
+    const { username, email, role } = req.body;
   
     const userExist = await userModel.findOne({ email });
-    // console.log(userExist);
-    // console.log("hiii");
 
     if (userExist) {
       if (userExist.auth0) return res.status(200).send({ data: userExist });
     }
 
-    // console.log("hiii");
-
-    const data = await userModel.create({ username, email, auth0: true });
-    // console.log(data);
+    // Create new user with jobSeeker role if not specified
+    const data = await userModel.create({ 
+      username, 
+      email, 
+      auth0: true,
+      role: role || 'jobSeeker' // Set default role as jobSeeker if not provided
+    });
+    
     res.status(201).send(data);
   } catch (error) {
-    res.status(500).send({ message: "failed in store db", error });
+    console.error("Error in authsignup:", error);
+    res.status(500).send({ message: "failed in store db", error: error.message });
   }
 }
 
 export async function getUser(req, res) {
   try {
-    // console.log("inside of getUser function");
-    // console.log(req.body);
-    const email = req.body;
-    const data = await userModel.findOne(email);
-    // console.log(data);
-    if (!data) {
-      return res.status(404).json({ message: "Not Found" });
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
-    // console.log(data);
+
+    const data = await userModel.findOne({ email });
+    
+    if (!data) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
     res.status(200).json(data);
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error });
+    console.error("Error fetching user:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
   }
 }
 
