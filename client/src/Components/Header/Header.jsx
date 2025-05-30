@@ -128,6 +128,15 @@ const Header = () => {
               </button>
             </>
           )}
+
+          {userData?.role === 'admin' && (
+            <Link
+              to="/admin"
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+            >
+              Admin Panel
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -216,6 +225,15 @@ const Header = () => {
                   Login
                 </button>
               </>
+            )}
+
+            {userData?.role === 'admin' && (
+              <Link
+                to="/admin"
+                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium"
+              >
+                Admin Panel
+              </Link>
             )}
           </div>
         </div>

@@ -14,7 +14,7 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is admin
+
     if (!userData || userData.role !== 'admin') {
       toast.error('Unauthorized access');
       navigate('/');

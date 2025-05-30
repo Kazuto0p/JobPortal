@@ -12,7 +12,10 @@ import AuthPage from './Pages/AuthPage/AuthPage';
 import PostJob from './Pages/PostJob/PostJob';
 import Role from './Pages/UserDetails/Role/Role';
 import RecruiterPortal from './Pages/RecruiterPortal/RecruiterPortal';
-import AdminDashboard from './Pages/Admin/AdminDashboard';
+import AdminDashboard from './Pages/Admin/Dashboard/AdminDashboard';
+import AdminUsers from './Pages/Admin/Users/AdminUsers';
+import AdminJobs from './Pages/Admin/Jobs/AdminJobs';
+import AdminApplications from './Pages/Admin/Applications/AdminApplications';
 import Header from './Components/Header/Header';
 
 const App = () => {
@@ -31,7 +34,12 @@ const App = () => {
         <Route path="/postjob" element={<PostJob />} />
         <Route path="/role" element={<><Header /><Role /></>} />
         <Route path='/recruiter-portal' element={<><Header /><RecruiterPortal /></>} />
+        
+        {/* Admin Routes */}
         <Route path='/admin' element={<AdminDashboard />} />
+        <Route path='/admin/users' element={<AdminUsers />} />
+        <Route path='/admin/jobs' element={<AdminJobs />} />
+        <Route path='/admin/applications' element={<AdminApplications />} />
       </Routes>
     </>
   );
