@@ -26,17 +26,24 @@ const AdminDashboard = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        const token = localStorage.getItem('token');
+        const config = {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        };
+
         const [usersRes, jobsRes, applicationsRes] = await Promise.all([
-          axios.get('http://localhost:3000/api/users'),
-          axios.get('http://localhost:3000/api/jobs'),
-          axios.get('http://localhost:3000/api/applications')
+          axios.get('http://localhost:3000/api/admin/users', config),
+          axios.get('http://localhost:3000/api/admin/jobs', config),
+          axios.get('http://localhost:3000/api/admin/applications', config)
         ]);
 
         setStats({
           totalUsers: usersRes.data.length,
           totalJobs: jobsRes.data.length,
           totalApplications: applicationsRes.data.length,
-          recentActivity: applicationsRes.data.slice(0, 5) 
+          recentActivity: applicationsRes.data.slice(0, 5) // Get 5 most recent applications
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -61,7 +68,7 @@ const AdminDashboard = () => {
       <div>
         <h1 className="text-3xl font-bold mb-8">Dashboard Overview</h1>
         
-
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <StatCard
             title="Total Users"
@@ -80,7 +87,7 @@ const AdminDashboard = () => {
           />
         </div>
 
- 
+        {/* Recent Activity */}
         <div className="bg-white rounded-lg shadow-sm p-6">
           <h2 className="text-xl font-semibold mb-4">Recent Applications</h2>
           <div className="overflow-x-auto">

@@ -3,7 +3,9 @@ import {
   deleteUser,
   updateUserRole,
   deleteJob,
-  getAllApplications
+  getAllApplications,
+  getAllUsers,
+  getAllJobs
 } from '../controller/admin_controller.js';
 import { isAdmin } from '../middleware/auth.js';
 
@@ -13,10 +15,12 @@ const router = express.Router();
 router.use(isAdmin);
 
 // User management
+router.get('/users', getAllUsers);
 router.delete('/users/:userId', deleteUser);
 router.put('/users/:userId/role', updateUserRole);
 
 // Job management
+router.get('/jobs', getAllJobs);
 router.delete('/jobs/:jobId', deleteJob);
 
 // Application management

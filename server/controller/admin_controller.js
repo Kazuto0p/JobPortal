@@ -3,6 +3,16 @@ import Job from '../models/job.model.js';
 import Application from '../models/application.model.js';
 
 // User Management
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Error fetching users', error: error.message });
+  }
+};
+
 export const deleteUser = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -57,7 +67,7 @@ export const updateUserRole = async (req, res) => {
       userId,
       { role },
       { new: true }
-    );
+    ).select('-password');
 
     res.status(200).json(updatedUser);
   } catch (error) {
@@ -67,6 +77,16 @@ export const updateUserRole = async (req, res) => {
 };
 
 // Job Management
+export const getAllJobs = async (req, res) => {
+  try {
+    const jobs = await Job.find().sort({ createdAt: -1 });
+    res.status(200).json(jobs);
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    res.status(500).json({ message: 'Error fetching jobs', error: error.message });
+  }
+};
+
 export const deleteJob = async (req, res) => {
   try {
     const { jobId } = req.params;

@@ -9,7 +9,12 @@ const AdminJobs = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/jobs');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:3000/api/admin/jobs', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setJobs(response.data);
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -27,7 +32,12 @@ const AdminJobs = () => {
     if (!window.confirm('Are you sure you want to delete this job?')) return;
     
     try {
-      await axios.delete(`http://localhost:3000/api/admin/jobs/${jobId}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:3000/api/admin/jobs/${jobId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setJobs(jobs.filter(job => job._id !== jobId));
       toast.success('Job deleted successfully');
     } catch (error) {

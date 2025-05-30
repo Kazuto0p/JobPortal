@@ -9,7 +9,12 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/users');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:3000/api/admin/users', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setUsers(response.data);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -27,7 +32,12 @@ const AdminUsers = () => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      await axios.delete(`http://localhost:3000/api/admin/users/${userId}`);
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:3000/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setUsers(users.filter(user => user._id !== userId));
       toast.success('User deleted successfully');
     } catch (error) {
@@ -38,9 +48,15 @@ const AdminUsers = () => {
 
   const handleUpdateRole = async (userId, newRole) => {
     try {
-      await axios.put(`http://localhost:3000/api/admin/users/${userId}/role`, {
-        role: newRole
-      });
+      const token = localStorage.getItem('token');
+      await axios.put(`http://localhost:3000/api/admin/users/${userId}/role`, 
+        { role: newRole },
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
       setUsers(users.map(user => 
         user._id === userId ? { ...user, role: newRole } : user
       ));

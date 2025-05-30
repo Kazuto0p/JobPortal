@@ -65,52 +65,96 @@ const ApplicationCard = ({ jobTitle, company, location, status }) => {
 
 // Applications Component
 const Applications = () => {
-  const { user, isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
-  const { userData } = useUser();
   const [applications, setApplications] = useState([]);
-  const [fetching, setFetching] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { userData } = useUser();
   const navigate = useNavigate();
 
-  const email = isAuthenticated ? user?.email : userData?.email;
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (!email) {
-      toast.error("Please log in to view applications.");
-      navigate("/login");
-      return;
+  const getAuthToken = async () => {
+    // Try regular authentication token first
+    const token = localStorage.getItem('token');
+    if (token) {
+      return token;
     }
 
-    const fetchApplications = async () => {
-      setFetching(true);
+    // If no regular token, try Auth0
+    if (isAuthenticated && user) {
       try {
-        const token = await getAccessTokenSilently();
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/applications/jobseeker/${email}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        console.log("Jobseeker applications:", res.data);
-        setApplications(res.data.applications || []);
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: "https://job-platform.api",
+            scope: "openid profile email offline_access"
+          }
+        });
+        return token;
       } catch (error) {
-        console.error("Error fetching applications:", error.response?.data || error.message);
-        toast.error("Failed to fetch applications.");
-      } finally {
-        setFetching(false);
+        console.error("Error getting Auth0 token:", error);
+        // If token refresh fails, redirect to login
+        navigate('/auth');
+        throw new Error("Authentication failed. Please log in again.");
       }
-    };
+    }
 
+    // If no authentication method works, redirect to auth page
+    navigate('/auth');
+    throw new Error('No authentication token found. Please log in.');
+  };
+
+  const fetchApplications = async () => {
+    try {
+      if (!userData && !isAuthenticated) {
+        toast.error("Please log in to view applications");
+        navigate("/auth");
+        return;
+      }
+
+      const email = userData?.email || user?.email;
+      if (!email) {
+        toast.error("Please log in to view applications");
+        navigate("/auth");
+        return;
+      }
+
+      const token = await getAuthToken();
+      const response = await axios.get(`http://localhost:3000/api/applications/user/${email}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      setApplications(response.data);
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+      if (!error.message.includes('Please log in')) {
+        toast.error('Failed to fetch applications');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchApplications();
-  }, [email, isAuthenticated, isLoading, navigate]);
+  }, [userData, isAuthenticated, user]);
 
-  if (isLoading || fetching) {
-    return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex">
+        <Sidebar />
+        <div className="flex-1 p-4">
+          <h2 className="text-2xl font-bold">Applications</h2>
+          <div className="mt-4">Loading...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="flex">
       <Sidebar />
       <div className="flex-1 p-4">
-        <h2 className="text-2xl font-bold">Applications View</h2>
+        <h2 className="text-2xl font-bold">Applications</h2>
         <div className="mt-4">
           {applications.length === 0 ? (
             <p className="text-gray-600">No applications found.</p>
@@ -118,9 +162,9 @@ const Applications = () => {
             applications.map((app) => (
               <ApplicationCard
                 key={app._id}
-                jobTitle={app.jobId.jobTitle}
-                company={app.jobId.company}
-                location={app.jobId.location}
+                jobTitle={app.jobId?.jobTitle || 'N/A'}
+                company={app.jobId?.company || 'N/A'}
+                location={app.jobId?.location || 'N/A'}
                 status={app.status}
               />
             ))

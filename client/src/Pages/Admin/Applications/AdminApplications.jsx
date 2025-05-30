@@ -9,7 +9,12 @@ const AdminApplications = () => {
 
   const fetchApplications = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/api/admin/applications');
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:3000/api/admin/applications', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       setApplications(response.data);
     } catch (error) {
       console.error('Error fetching applications:', error);
