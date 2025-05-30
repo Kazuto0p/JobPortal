@@ -216,56 +216,117 @@ export async function getusers(req, res) {
 }
 
 export async function savedJobs(req, res) {
-  console.log("inside saved jobs");
+  console.log("=== Starting savedJobs function ===");
   try {
-    const { email, jobId } = req.body; // expect jobId instead of whole data
-    console.log(req.body);
+    const { email, jobId } = req.body;
+    console.log('Attempting to save job:', { email, jobId });
 
     if (!email || !jobId) {
+      console.log('Missing required fields:', { email, jobId });
       return res.status(400).json({ message: "Email or jobId is missing" });
     }
 
     // Validate jobId as a valid ObjectId string
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      console.log('Invalid job ID format:', jobId);
       return res.status(400).json({ message: "Invalid job ID" });
     }
 
-    // Add only the jobId (string) to the savedjobs array
-    const updatedUser = await userModel.findOneAndUpdate(
-      { email: email },
-      { $addToSet: { savedjobs: jobId } }, // save just jobId string
-      { new: true }
-    );
+    // First check if the job exists
+    const job = await Job.findById(jobId);
+    if (!job) {
+      console.log('Job not found:', jobId);
+      return res.status(404).json({ message: "Job not found" });
+    }
 
-    if (!updatedUser) {
+    // First find the user to check current saved jobs
+    const existingUser = await userModel.findOne({ email });
+    console.log('Found user:', {
+      email: existingUser?.email,
+      currentSavedJobs: existingUser?.savedjobs || []
+    });
+
+    if (!existingUser) {
+      console.log('User not found:', email);
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.status(200).json({ message: "Job saved successfully", savedjobs: updatedUser.savedjobs });
+    // Add the jobId string to the savedjobs array
+    const updatedUser = await userModel.findOneAndUpdate(
+      { email: email },
+      { $addToSet: { savedjobs: jobId.toString() } },
+      { new: true }
+    );
+
+    console.log('Updated user saved jobs:', {
+      email: updatedUser.email,
+      savedJobs: updatedUser.savedjobs
+    });
+
+    res.status(200).json({ 
+      message: "Job saved successfully", 
+      savedjobs: updatedUser.savedjobs 
+    });
   } catch (error) {
-    console.error("Error saving job:", error);
-    res.status(500).json({ message: "Error saving job", error: error.message });
+    console.error("Error in savedJobs:", error);
+    res.status(500).json({ 
+      message: "Error saving job", 
+      error: error.message 
+    });
   }
 }
 
 export async function getSavedJobs(req, res) {
+  console.log("=== Starting getSavedJobs function ===");
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: "Email missing" });
+    console.log('Attempting to fetch saved jobs for email:', email);
+
+    if (!email) {
+      console.log('No email provided');
+      return res.status(400).json({ message: "Email missing" });
+    }
 
     const user = await userModel.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    console.log('Found user:', {
+      email: user?.email,
+      hasSavedJobs: !!user?.savedjobs,
+      savedJobsCount: user?.savedjobs?.length || 0,
+      savedJobs: user?.savedjobs || []
+    });
 
-    // savedjobs contains job IDs as strings
-    const jobIds = user.savedjobs.map(id => new mongoose.Types.ObjectId(id));
+    if (!user) {
+      console.log('User not found:', email);
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.savedjobs || user.savedjobs.length === 0) {
+      console.log('No saved jobs found for user');
+      return res.status(200).json({ savedJobs: [] });
+    }
+
+    // Convert string IDs to ObjectIds, filtering out any invalid IDs
+    const jobIds = user.savedjobs
+      .filter(id => mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    console.log('Converted job IDs:', jobIds);
 
     // fetch full jobs from Job collection
     const jobs = await Job.find({ _id: { $in: jobIds } });
+    console.log('Found jobs:', {
+      requestedCount: jobIds.length,
+      foundCount: jobs.length,
+      jobs: jobs.map(j => ({ id: j._id, title: j.jobTitle }))
+    });
 
     res.status(200).json({ savedJobs: jobs });
   } catch (error) {
-    console.error("Error fetching saved jobs:", error);
-    res.status(500).json({ message: "Error fetching saved jobs", error: error.message });
+    console.error("Error in getSavedJobs:", error);
+    res.status(500).json({ 
+      message: "Error fetching saved jobs", 
+      error: error.message 
+    });
   }
 }
 

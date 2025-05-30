@@ -33,9 +33,9 @@ const Navigation = () => {
       <Link to="/" className="text-blue-600 border-b-2 border-blue-600 pb-1">
         Home
       </Link>
-      <Link to="/dashboard" className="text-gray-600 hover:text-blue-600">
+      {/* <Link to="/dashboard" className="text-gray-600 hover:text-blue-600">
         Dashboard
-      </Link>
+      </Link> */}
       <Link to="/applications" className="text-gray-600 hover:text-blue-600">
         Applications
       </Link>

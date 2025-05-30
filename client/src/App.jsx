@@ -12,6 +12,7 @@ import AuthPage from './Pages/AuthPage/AuthPage';
 import PostJob from './Pages/PostJob/PostJob';
 import Role from './Pages/UserDetails/Role/Role';
 import RecruiterPortal from './Pages/RecruiterPortal/RecruiterPortal';
+import AdminDashboard from './Pages/Admin/AdminDashboard';
 import Header from './Components/Header/Header';
 
 const App = () => {
@@ -30,6 +31,7 @@ const App = () => {
         <Route path="/postjob" element={<PostJob />} />
         <Route path="/role" element={<><Header /><Role /></>} />
         <Route path='/recruiter-portal' element={<><Header /><RecruiterPortal /></>} />
+        <Route path='/admin' element={<AdminDashboard />} />
       </Routes>
     </>
   );
