@@ -50,14 +50,14 @@ const ApplicationCard = ({ jobTitle, company, location, status }) => {
       </div>
       <span
         className={`px-4 py-1 rounded ${
-          status === "Accepted"
+          status === "accepted"
             ? "bg-green-100 text-green-600"
-            : status === "Rejected"
+            : status === "rejected"
             ? "bg-red-100 text-red-600"
             : "bg-orange-100 text-orange-600"
         }`}
       >
-        {status}
+        {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     </div>
   );
@@ -117,13 +117,16 @@ const Applications = () => {
       }
 
       const token = await getAuthToken();
-      const response = await axios.get(`http://localhost:3000/api/applications/user/${email}`, {
+      const response = await axios.get(`http://localhost:3000/api/applications/jobseeker/${email}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      setApplications(response.data);
+      // Check if response.data has the applications property
+      const applicationData = response.data.applications || response.data;
+      setApplications(Array.isArray(applicationData) ? applicationData : []);
+      
     } catch (error) {
       console.error('Error fetching applications:', error);
       if (!error.message.includes('Please log in')) {
