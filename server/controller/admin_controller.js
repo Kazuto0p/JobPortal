@@ -28,12 +28,12 @@ export const deleteUser = async (req, res) => {
 
     await User.findByIdAndDelete(userId);
     
-    // Delete all jobs posted by this user if they were a recruiter
+
     if (user.role === 'recruiter') {
       await Job.deleteMany({ postedByEmail: user.email });
     }
     
-    // Delete all applications by this user if they were a job seeker
+
     if (user.role === 'jobSeeker') {
       await Application.deleteMany({ jobSeekerEmail: user.email });
     }
@@ -54,7 +54,7 @@ export const updateUserRole = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
 
-    // Don't allow changing role of the last admin
+
     const user = await User.findById(userId);
     if (user.role === 'admin' && role !== 'admin') {
       const adminCount = await User.countDocuments({ role: 'admin' });
@@ -76,7 +76,7 @@ export const updateUserRole = async (req, res) => {
   }
 };
 
-// Job Management
+
 export const getAllJobs = async (req, res) => {
   try {
     const jobs = await Job.find().sort({ createdAt: -1 });

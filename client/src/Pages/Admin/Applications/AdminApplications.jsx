@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../Layout/AdminLayout';
+import { Link } from 'react-router-dom';
 
 const AdminApplications = () => {
   const [applications, setApplications] = useState([]);
@@ -52,8 +53,10 @@ const AdminApplications = () => {
   return (
     <AdminLayout>
       <div>
-        <h1 className="text-3xl font-bold mb-8">Application Management</h1>
         
+        <h1 className="text-3xl font-bold mb-8">Application Management</h1>
+
+
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full">

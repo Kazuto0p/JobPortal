@@ -251,7 +251,7 @@ const AuthPage = () => {
     }
   };
 
-  // Auto-switch to sign-in after 200ms
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsSignIn(true);

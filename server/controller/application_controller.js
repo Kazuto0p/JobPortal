@@ -6,7 +6,7 @@ export const applyForJob = async (req, res) => {
   try {
     const { jobId, jobSeekerEmail } = req.body;
     
-    // Validate required fields
+
     if (!jobId || !jobSeekerEmail) {
       return res.status(400).json({ message: "Job ID and jobseeker email are required" });
     }
@@ -31,7 +31,7 @@ export const applyForJob = async (req, res) => {
     const existingApplication = await Application.findOne({ 
       jobId, 
       jobSeekerEmail,
-      status: { $ne: "Rejected" } // Allow reapplying if previously rejected
+      status: { $ne: "Rejected" } 
     });
 
     if (existingApplication) {
@@ -75,11 +75,11 @@ export const getApplicationsForRecruiter = async (req, res) => {
       .populate({
         path: "jobId",
         select: "jobTitle company location postedByEmail",
-        match: { postedByEmail: recruiterEmail }, // Ensure job was posted by recruiter
+        match: { postedByEmail: recruiterEmail },
       })
       .lean();
 
-    // Filter out applications where jobId is null (due to match)
+
     const validApplications = applications.filter((app) => app.jobId);
 
     if (validApplications.length === 0) {
@@ -98,24 +98,21 @@ export const updateApplicationStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    // Validate status
+
     if (!["Accepted", "Rejected", "Pending"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    // Find the application
     const application = await Application.findById(id);
     if (!application) {
       return res.status(404).json({ message: "Application not found" });
     }
 
-    // Verify the user's email exists
     if (!req.user?.email) {
       console.error('No user email in request:', req.user);
       return res.status(401).json({ message: "Authentication required" });
     }
 
-    // Verify recruiter owns the job
     if (application.recruiterEmail !== req.user.email) {
       console.error('Unauthorized access attempt:', {
         applicationRecruiter: application.recruiterEmail,
@@ -124,7 +121,7 @@ export const updateApplicationStatus = async (req, res) => {
       return res.status(403).json({ message: "You don't have permission to update this application" });
     }
 
-    // Update the status
+
     application.status = status;
     await application.save();
 
@@ -145,7 +142,6 @@ export const getApplicationsForJobSeeker = async (req, res) => {
       return res.status(400).json({ message: "Job seeker email is required" });
     }
 
-    // Fetch applications where jobSeekerEmail matches
     const applications = await Application.find({ jobSeekerEmail })
       .populate({
         path: "jobId",
@@ -153,7 +149,7 @@ export const getApplicationsForJobSeeker = async (req, res) => {
       })
       .lean();
 
-    // Filter out applications where jobId is null
+
     const validApplications = applications.filter((app) => app.jobId);
 
     res.status(200).json({ applications: validApplications || [] });

@@ -83,12 +83,22 @@ const HomePage = () => {
                   <p><span className="font-semibold">Description:</span> {selectedJob.description}</p>
                 )}
               </div>
+              <div className=' gap 10px'>
+
               <button
                 className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
                 onClick={() => setSelectedJob(null)}
               >
                 Close
               </button>
+
+              {/* <button
+                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                onClick={() => setSelectedJob(null)}
+              > <img className='ob' src="../../../public/ban.png" alt="" srcset="" />
+              
+              </button> */}
+              </div>
             </div>
           ) : (
             <div className="text-center text-gray-600">

@@ -5,7 +5,7 @@ import { authsignup, getSavedJobs, getUser, getusers, logIn, removeSavedJob, sav
 
 const router = express.Router();
 
-// Configure multer for file uploads
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/');
@@ -18,8 +18,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.post("/users", getUser); // New route for POST /api/users
-router.get("/users", getusers); // GET /api/users
+router.post("/users", getUser);
+router.get("/users", getusers);
 router.post("/signup", Signup);
 router.post("/authsignup", authsignup);
 router.post("/login", logIn);
@@ -28,8 +28,8 @@ router.post("/savedJobs", savedJobs);
 router.post("/getSavedJobs", getSavedJobs);
 router.post("/removeSavedJob", removeSavedJob);
 
-// Profile update routes
+
 router.put("/users/profile/:id", upload.single('profilepicture'), updateProfile);
-router.put("/updateProfile/:id", upload.single('profilepicture'), updateProfile); // Alias route for backward compatibility
+router.put("/updateProfile/:id", upload.single('profilepicture'), updateProfile); 
 
 export default router;

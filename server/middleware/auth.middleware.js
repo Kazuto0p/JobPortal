@@ -43,7 +43,7 @@ export const authenticateUser = (req, res, next) => {
 
   const token = authHeader.split(" ")[1];
 
-  // First try regular JWT verification
+  
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     console.log('Regular JWT verification successful:', {

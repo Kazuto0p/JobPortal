@@ -1,39 +1,37 @@
 import bcrypt from "bcrypt";
-import userModel from "../models/user.model.js"; // Adjust path to your model
-import jwt from "jsonwebtoken"; // Add JWT for authentication
+import userModel from "../models/user.model.js"; 
+import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import Job from "../models/job.model.js";
 
-// Define JWT secret consistently
+
 const JWT_SECRET = process.env.JWT_KEY || "your_jwt_secret";
 
 export async function Signup(req, res) {
   try {
     const { email, password, username, role } = req.body;
 
-    // Validate required fields
+
     if (!email || !password || !username) {
       return res.status(400).json({ message: "Please fill all the details" });
     }
 
-    // Check if email already exists
     const existingUser = await userModel.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user without a role
+
     const data = await userModel.create({
       email,
       username,
       password: hashedPassword,
-      role: null // Don't set a default role, let user choose
+      role: null
     });
 
-    // Generate JWT token
+
     const token = jwt.sign(
       { userId: data._id, email: data.email },
       JWT_SECRET,
@@ -44,7 +42,7 @@ export async function Signup(req, res) {
       message: "User created successfully", 
       token, 
       data,
-      needsRole: true // Add this flag to indicate role selection is needed
+      needsRole: true
     });
   } catch (error) {
     console.error("Error in Signup:", error);
@@ -56,7 +54,7 @@ export async function logIn(req, res) {
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
+
     if (!email || !password) {
       return res
         .status(400)
@@ -85,7 +83,7 @@ export async function logIn(req, res) {
     res.status(200).json({ 
       message: "Logged in successfully", 
       token,
-      data: userExist // Include user data in response
+      data: userExist 
     });
   } catch (error) {
     console.error(error);
@@ -117,17 +115,17 @@ export async function authsignup(req, res) {
       }
     }
 
-    // Create new user without a role
+
     const data = await userModel.create({ 
       username, 
       email, 
       auth0: true,
-      role: null // Don't set a default role, let user choose
+      role: null 
     });
     
     res.status(201).send({
       data,
-      needsRole: true // Indicate that role selection is needed
+      needsRole: true 
     });
   } catch (error) {
     console.error("Error in authsignup:", error);
@@ -187,7 +185,7 @@ export async function updateRole(req, res) {
       { 
         $set: {
           role: role,
-          profileComplete: false // Reset profile completion when role changes
+          profileComplete: false 
         }
       },
       { new: true }
@@ -197,7 +195,7 @@ export async function updateRole(req, res) {
     res.status(200).json({
       message: "Role updated successfully",
       data: updatedUser,
-      needsProfile: true // Always require profile completion after role change
+      needsProfile: true 
     });
   } catch (error) {
     console.error("Error updating role:", error);
@@ -207,7 +205,7 @@ export async function updateRole(req, res) {
 
 export async function getusers(req, res) {
   try {
-    // console.log("inside of get users function");
+    
     const data = await userModel.find();
     res.status(200).send(data);
   } catch (error) {
@@ -216,7 +214,7 @@ export async function getusers(req, res) {
 }
 
 export async function savedJobs(req, res) {
-  console.log("=== Starting savedJobs function ===");
+  // console.log("=== Starting savedJobs function ===");
   try {
     const { email, jobId } = req.body;
     console.log('Attempting to save job:', { email, jobId });
@@ -277,7 +275,7 @@ export async function savedJobs(req, res) {
 }
 
 export async function getSavedJobs(req, res) {
-  console.log("=== Starting getSavedJobs function ===");
+  // console.log("=== Starting getSavedJobs function ===");
   try {
     const { email } = req.body;
     console.log('Attempting to fetch saved jobs for email:', email);
@@ -305,14 +303,13 @@ export async function getSavedJobs(req, res) {
       return res.status(200).json({ savedJobs: [] });
     }
 
-    // Convert string IDs to ObjectIds, filtering out any invalid IDs
+
     const jobIds = user.savedjobs
       .filter(id => mongoose.Types.ObjectId.isValid(id))
       .map(id => new mongoose.Types.ObjectId(id));
 
     console.log('Converted job IDs:', jobIds);
 
-    // fetch full jobs from Job collection
     const jobs = await Job.find({ _id: { $in: jobIds } });
     console.log('Found jobs:', {
       requestedCount: jobIds.length,
@@ -338,18 +335,17 @@ export async function removeSavedJob(req, res) {
       return res.status(400).json({ message: "Email or jobId is missing" });
     }
 
-    // Validate jobId format (24 hex chars for ObjectId)
+
     if (!mongoose.Types.ObjectId.isValid(jobId)) {
       return res.status(400).json({ message: "Invalid job ID format" });
     }
 
     const jobIdStr = jobId.toString();
 
-    // Log before update
+ 
     const userBefore = await userModel.findOne({ email }).lean();
     console.log("Before update savedjobs:", userBefore?.savedjobs);
 
-    // Pull jobId from savedjobs array
     const updatedUser = await userModel.findOneAndUpdate(
       { email },
       { $pull: { savedjobs: jobIdStr } },
@@ -395,12 +391,12 @@ export async function updateProfile(req, res) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Preserve role if not explicitly updated
+ 
     if (!updates.role) {
       updates.role = existingUser.role;
     }
 
-    // Set profileComplete to true when updating profile
+
     updates.profileComplete = true;
 
     const user = await userModel.findByIdAndUpdate(

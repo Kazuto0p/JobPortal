@@ -22,11 +22,10 @@ app.get('/', (req, res) => {
   res.send("Welcome to Kirito's backend setup!");
 });
 
-app.use("/api", userRoutes); // Mount user routes
-app.use("/api", jobRoutes); // Mount job routes
+app.use("/api", userRoutes); 
+app.use("/api", jobRoutes);
 app.use("/api/applications", applicationRoutes);
-app.use("/api/admin", adminRoutes); // Mount admin routes
-
+app.use("/api/admin", adminRoutes); 
 connection().then(() => {
   app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);

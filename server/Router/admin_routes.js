@@ -11,7 +11,7 @@ import { isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Protect all admin routes with isAdmin middleware
+
 router.use(isAdmin);
 
 // User management
