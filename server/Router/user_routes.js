@@ -2,9 +2,9 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import { authsignup, getSavedJobs, getUser, getusers, logIn, removeSavedJob, savedJobs, Signup, updateProfile, updateRole } from "../controller/user_controller.js";
+import { authenticateUser } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -18,18 +18,19 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.post("/users", getUser);
-router.get("/users", getusers);
+// Public routes
 router.post("/signup", Signup);
 router.post("/authsignup", authsignup);
 router.post("/login", logIn);
-router.put("/updateRole", updateRole);
-router.post("/savedJobs", savedJobs);
-router.post("/getSavedJobs", getSavedJobs);
-router.post("/removeSavedJob", removeSavedJob);
 
-
-router.put("/users/profile/:id", upload.single('profilepicture'), updateProfile);
-router.put("/updateProfile/:id", upload.single('profilepicture'), updateProfile); 
+// Protected routes
+router.post("/users", authenticateUser, getUser);
+router.get("/users", authenticateUser, getusers);
+router.put("/updateRole", authenticateUser, updateRole);
+router.post("/savedJobs", authenticateUser, savedJobs);
+router.post("/getSavedJobs", authenticateUser, getSavedJobs);
+router.post("/removeSavedJob", authenticateUser, removeSavedJob);
+router.put("/users/profile/:id", authenticateUser, upload.single('profilepicture'), updateProfile);
+router.put("/updateProfile/:id", authenticateUser, upload.single('profilepicture'), updateProfile); 
 
 export default router;

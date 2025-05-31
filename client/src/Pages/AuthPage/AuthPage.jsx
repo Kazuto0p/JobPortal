@@ -34,6 +34,9 @@ const AuthPage = () => {
         try {
           // Try to fetch user first
           const token = await getAccessTokenSilently();
+          // Store the Auth0 token in localStorage
+          localStorage.setItem('token', token);
+          
           try {
             const userRes = await axios.post(
               `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/users`,

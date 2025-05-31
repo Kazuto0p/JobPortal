@@ -5,7 +5,38 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../UserContext";
 
-const RecruiterPortal = () => {
+// Create an axios instance with interceptors
+const api = axios.create({
+  baseURL: 'http://localhost:3000'
+});
+
+// Add response interceptor for token refresh
+api.interceptors.response.use(
+  (response) => {
+    const newToken = response.headers['x-new-token'];
+    if (newToken) {
+      localStorage.setItem('token', newToken);
+    }
+    return response;
+  },
+  async (error) => {
+    if (error.response?.status === 401) {
+      const errorCode = error.response?.data?.code;
+      
+      if (errorCode === 'TOKEN_EXPIRED' || errorCode === 'TOKEN_MISSING') {
+        // Clear the invalid token
+        localStorage.removeItem('token');
+        
+        // Redirect to auth page
+        window.location.href = '/auth';
+        return Promise.reject(error);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+function RecruiterPortal() {
   const { user, isAuthenticated, isLoading, getAccessTokenSilently } = useAuth0();
   const { userData } = useUser();
   const navigate = useNavigate();
@@ -13,34 +44,143 @@ const RecruiterPortal = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const email = isAuthenticated ? user?.email : userData?.email;
+  const email = userData?.email || (isAuthenticated ? user?.email : null);
   const role = userData?.role;
+
+  const getAuthToken = async () => {
+    console.log('Getting auth token:', {
+      isAuthenticated,
+      hasUser: !!user,
+      isLoading,
+      hasStoredToken: !!localStorage.getItem('token')
+    });
+
+    // If using Auth0, always try to get a fresh token first
+    if (isAuthenticated && user) {
+      try {
+        console.log('Attempting to get fresh Auth0 token');
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: "https://job-platform.api",
+            scope: "openid profile email offline_access"
+          }
+        });
+        console.log('Successfully got fresh Auth0 token');
+        // Store the token
+        localStorage.setItem('token', token);
+        return token;
+      } catch (error) {
+        console.error("Error getting Auth0 token:", {
+          message: error.message,
+          stack: error.stack
+        });
+        // If Auth0 token fails, try stored token
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          console.log('Using stored token as fallback');
+          return storedToken;
+        }
+        // If no stored token, redirect to auth
+        console.log('No stored token available, redirecting to auth');
+        navigate('/auth');
+        throw new Error("Authentication failed. Please log in again.");
+      }
+    }
+    
+    // If not using Auth0, try regular token
+    const token = localStorage.getItem('token');
+    if (token) {
+      console.log('Using stored regular token');
+      return token;
+    }
+    
+    // If no token found, redirect to auth page
+    console.log('No token available, redirecting to auth');
+    navigate('/auth');
+    throw new Error('No authentication token found. Please log in.');
+  };
 
   useEffect(() => {
     if (isLoading) return;
 
     if (!email) {
-      toast.error("Please log in.");
-      return navigate("/login");
+      toast.error("Please log in to continue.");
+      return navigate("/auth");
     }
 
     if (role !== "recruiter") {
-      toast.error("Access denied.");
+      toast.error("Access denied. Only recruiters can access this page.");
       return navigate("/");
     }
 
     const fetchApplications = async () => {
       try {
         setLoading(true);
-        const token = await getAccessTokenSilently();
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/applications/recruiter/${email}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const token = await getAuthToken();
+        
+        if (!token) {
+          console.error('No token available');
+          toast.error("Authentication required");
+          navigate("/auth");
+          return;
+        }
+
+        console.log('Making API request with token:', {
+          tokenExists: !!token,
+          tokenPrefix: token ? token.substring(0, 20) + '...' : null,
+          email,
+          role
+        });
+
+        const res = await api.get(
+          `/api/applications/recruiter/${email}`,
+          { 
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            } 
+          }
         );
+        
+        console.log('API Response:', {
+          status: res.status,
+          dataExists: !!res.data,
+          applicationsCount: res.data?.applications?.length,
+          data: res.data
+        });
+        
         setApplications(res.data.applications || []);
       } catch (error) {
-        console.error(error);
-        toast.error("Failed to fetch applications.");
+        console.error("Error fetching applications:", {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+          stack: error.stack
+        });
+        
+        if (error.response?.status === 401) {
+          const errorMessage = error.response?.data?.message || "Session expired. Please log in again.";
+          const errorCode = error.response?.data?.code;
+          
+          console.log('Authentication error:', {
+            code: errorCode,
+            message: errorMessage
+          });
+          
+          toast.error(errorMessage);
+          
+          if (errorCode === 'TOKEN_EXPIRED' || errorCode === 'TOKEN_INVALID') {
+            // Clear token and redirect to auth
+            localStorage.removeItem('token');
+            navigate("/auth");
+          }
+        } else if (error.response?.status === 403) {
+          toast.error("Access denied. Only recruiters can access this page.");
+          navigate("/");
+        } else {
+          toast.error("Failed to fetch applications. Please try again.");
+        }
       } finally {
         setLoading(false);
       }
@@ -49,125 +189,156 @@ const RecruiterPortal = () => {
     fetchApplications();
   }, [email, isAuthenticated, isLoading, role]);
 
-  const updateStatus = async (id, status) => {
-    let accessToken;
+  const handleStatusUpdate = async (applicationId, newStatus) => {
     try {
-      accessToken = await getAccessTokenSilently();
-      console.log('Token obtained:', accessToken ? 'Yes' : 'No');
-      console.log('Token length:', accessToken?.length);
-      console.log('Request URL:', `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/applications/${id}/status`);
+      const token = await getAuthToken();
       
-      if (!accessToken) {
-        console.error('No token available');
-        toast.error("Authentication failed. Please log in again.");
-        navigate('/auth');
+      if (!token) {
+        toast.error("Authentication required");
+        navigate("/auth");
         return;
       }
 
-      const response = await axios.put(
-        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/applications/${id}/status`,
-        { status },
+      await api.patch(
+        `/api/applications/${applicationId}`,
+        { status: newStatus },
         { 
           headers: { 
-            'Authorization': `Bearer ${accessToken}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           } 
         }
       );
       
-      if (response.status === 200) {
-        setApplications((apps) =>
-          apps.map((app) => (app._id === id ? { ...app, status } : app))
-        );
-        toast.success(`Application ${status.toLowerCase()}!`);
-      }
+      // Update local state
+      setApplications(applications.map(app => 
+        app._id === applicationId ? { ...app, status: newStatus } : app
+      ));
+      
+      toast.success("Application status updated successfully");
     } catch (error) {
-      console.error('Error updating status:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        headers: error.response?.headers,
-        message: error.message,
-        hasToken: !!accessToken
-      });
-
-      if (error.response?.status === 403) {
-        toast.error(error.response?.data?.message || "You don't have permission to update this application.");
-      } else if (error.response?.status === 401) {
-        console.error('Auth headers:', error.config?.headers);
-        toast.error(error.response?.data?.message || "Authentication failed. Please try logging in again.");
-        navigate('/auth');
+      console.error("Error updating status:", error);
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message || "Session expired. Please log in again.";
+        toast.error(errorMessage);
+        navigate("/auth");
       } else {
-        toast.error(error.response?.data?.message || "Failed to update status.");
+        toast.error("Failed to update application status");
       }
     }
   };
 
-  if (isLoading || loading) return <div>Loading...</div>;
+  const handleViewResume = async (applicationId) => {
+    try {
+      const token = await getAuthToken();
+      
+      if (!token) {
+        toast.error("Authentication required");
+        navigate("/auth");
+        return;
+      }
+
+      const response = await api.get(
+        `/api/applications/${applicationId}/resume`,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          responseType: 'blob'
+        }
+      );
+
+      // Create blob URL and open in new tab
+      const file = new Blob([response.data], { type: response.headers['content-type'] });
+      const fileURL = URL.createObjectURL(file);
+      window.open(fileURL, '_blank');
+    } catch (error) {
+      console.error('Error viewing resume:', error);
+      if (error.response?.status === 401) {
+        const errorMessage = error.response?.data?.message || "Session expired. Please log in again.";
+        toast.error(errorMessage);
+        navigate("/auth");
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to view resume');
+      }
+    }
+  };
+
+  if (loading) {
+    return <div className="p-4">Loading...</div>;
+  }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Recruiter Portal</h2>
-      {applications.length === 0 ? (
-        <p className="text-gray-600">No applications found.</p>
-      ) : (
-        <div className="space-y-4">
-          {applications.map((app) => {
-            const status = app.status?.toLowerCase();
-            return (
-              <div
-                key={app._id}
-                className="border rounded-lg p-4 bg-white shadow-sm flex justify-between items-center"
-              >
-                <div>
-                  <h3 className="text-lg font-semibold">
-                    {app.jobId.jobTitle} at {app.jobId.company}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Applicant: {app.jobSeekerEmail}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Location: {app.jobId.location}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Applied: {new Date(app.appliedAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span
-                    className={`px-4 py-1 rounded ${
-                      status === "accepted"
-                        ? "bg-green-100 text-green-600"
-                        : status === "rejected"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-orange-100 text-orange-600"
-                    }`}
-                  >
-                    {app.status}
-                  </span>
-                  {status === "pending" && (
-                    <>
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Applications</h1>
+      <div className="overflow-x-auto">
+        <table className="min-w-full bg-white">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {applications.length === 0 ? (
+              <tr>
+                <td colSpan="4" className="px-6 py-4 text-center text-gray-500">
+                  No applications found
+                </td>
+              </tr>
+            ) : (
+              applications.map((application) => (
+                <tr key={application._id}>
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-900">
+                      {application.jobId?.jobTitle}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {application.jobId?.company}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {application.jobSeekerEmail}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      application.status === 'Accepted' ? 'bg-green-100 text-green-800' :
+                      application.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {application.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium space-x-2">
+                    <select
+                      value={application.status}
+                      onChange={(e) => handleStatusUpdate(application._id, e.target.value)}
+                      className="rounded border-gray-300 text-sm"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Accepted">Accept</option>
+                      <option value="Rejected">Reject</option>
+                    </select>
+                    {application.resume && (
                       <button
-                        onClick={() => updateStatus(app._id, "Accepted")}
-                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+                        onClick={() => handleViewResume(application._id)}
+                        className="text-blue-600 hover:text-blue-900 ml-2"
                       >
-                        Accept
+                        View Resume
                       </button>
-                      <button
-                        onClick={() => updateStatus(app._id, "Rejected")}
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        Reject
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-};
+}
 
 export default RecruiterPortal;

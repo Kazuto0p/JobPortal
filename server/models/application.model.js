@@ -10,7 +10,13 @@ const applicationSchema = new mongoose.Schema(
       enum: ["Pending", "Accepted", "Rejected"],
       default: "Pending",
     },
-    appliedAt: { type: Date, default: Date.now },
+    resume: {
+      filename: String,
+      path: String,
+      originalname: String,
+      mimetype: String
+    },
+    createdAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );

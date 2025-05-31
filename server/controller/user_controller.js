@@ -33,7 +33,11 @@ export async function Signup(req, res) {
 
 
     const token = jwt.sign(
-      { userId: data._id, email: data.email },
+      { 
+        userId: data._id, 
+        email: data.email,
+        role: data.role
+      },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -75,7 +79,11 @@ export async function logIn(req, res) {
 
     // Generate JWT token with consistent secret
     const token = jwt.sign(
-      { userId: userExist._id, email: userExist.email },
+      { 
+        userId: userExist._id, 
+        email: userExist.email,
+        role: userExist.role
+      },
       JWT_SECRET,
       { expiresIn: "24h" }
     );

@@ -63,6 +63,146 @@ const ApplicationCard = ({ jobTitle, company, location, status }) => {
   );
 };
 
+// ApplicationForm Component
+const ApplicationForm = ({ jobId, onClose }) => {
+  const [resume, setResume] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { userData } = useUser();
+  const navigate = useNavigate();
+
+  const getAuthToken = async () => {
+    if (isAuthenticated) {
+      try {
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: "https://job-platform.api",
+            scope: "openid profile email"
+          }
+        });
+        return token;
+      } catch (error) {
+        console.error('Error getting Auth0 token:', error);
+        const regularToken = localStorage.getItem('token');
+        if (regularToken) {
+          return regularToken;
+        }
+      }
+    }
+    
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/auth');
+      throw new Error('No authentication token found');
+    }
+    return token;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const token = await getAuthToken();
+      const email = userData?.email || user?.email;
+
+      if (!email) {
+        toast.error('Please log in to apply');
+        navigate('/auth');
+        return;
+      }
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('jobId', jobId);
+      formData.append('jobSeekerEmail', email);
+      if (resume) {
+        formData.append('resume', resume);
+      }
+
+      const response = await axios.post(
+        'http://localhost:3000/api/applications/apply',
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      toast.success('Application submitted successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit application');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast.error('File size should be less than 5MB');
+        return;
+      }
+      if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+        toast.error('Only PDF and image files are allowed');
+        return;
+      }
+      setResume(file);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center">
+      <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+        <h2 className="text-xl font-bold mb-4">Submit Application</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Resume (PDF or Image)
+            </label>
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              onChange={handleFileChange}
+              className="mt-1 block w-full text-sm text-gray-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100"
+            />
+            <p className="mt-1 text-sm text-gray-500">
+              Max file size: 5MB. Accepted formats: PDF, JPEG, PNG
+            </p>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md 
+                ${loading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+            >
+              {loading ? 'Submitting...' : 'Submit Application'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 // Applications Component
 const Applications = () => {
   const [applications, setApplications] = useState([]);

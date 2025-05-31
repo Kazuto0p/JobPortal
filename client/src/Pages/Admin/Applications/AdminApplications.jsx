@@ -3,14 +3,62 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../Layout/AdminLayout';
 import { Link } from 'react-router-dom';
+import { useAuth0 } from "@auth0/auth0-react";
+import { useUser } from '../../../UserContext';
+import { useNavigate } from 'react-router-dom';
 
 const AdminApplications = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { userData } = useUser();
+  const navigate = useNavigate();
+
+  const getAuthToken = async () => {
+    // If using Auth0, always try to get a fresh token first
+    if (isAuthenticated && user) {
+      try {
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: "https://job-platform.api",
+            scope: "openid profile email offline_access"
+          }
+        });
+        return token;
+      } catch (error) {
+        console.error("Error getting Auth0 token:", error);
+        // If Auth0 token fails, try stored token
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          return storedToken;
+        }
+        // If no stored token, redirect to auth
+        navigate('/auth');
+        throw new Error("Authentication failed. Please log in again.");
+      }
+    }
+    
+    // If not using Auth0, try regular token
+    const token = localStorage.getItem('token');
+    if (token) {
+      return token;
+    }
+    
+    // If no token found, redirect to auth page
+    navigate('/auth');
+    throw new Error('No authentication token found. Please log in.');
+  };
 
   const fetchApplications = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Check if user is admin
+      if (!userData?.role || userData.role !== 'admin') {
+        toast.error('Access denied. Only administrators can access this page.');
+        navigate('/');
+        return;
+      }
+
+      const token = await getAuthToken();
       const response = await axios.get('http://localhost:3000/api/admin/applications', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -19,7 +67,12 @@ const AdminApplications = () => {
       setApplications(response.data);
     } catch (error) {
       console.error('Error fetching applications:', error);
-      toast.error('Failed to fetch applications');
+      if (error.response?.status === 403) {
+        toast.error('Access denied. Only administrators can access this page.');
+        navigate('/');
+      } else {
+        toast.error('Failed to fetch applications');
+      }
     } finally {
       setLoading(false);
     }
@@ -27,7 +80,7 @@ const AdminApplications = () => {
 
   useEffect(() => {
     fetchApplications();
-  }, []);
+  }, [userData]); // Re-fetch when userData changes
 
   const getStatusColor = (status) => {
     switch (status.toLowerCase()) {
@@ -53,10 +106,7 @@ const AdminApplications = () => {
   return (
     <AdminLayout>
       <div>
-        
         <h1 className="text-3xl font-bold mb-8">Application Management</h1>
-
-
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full">
