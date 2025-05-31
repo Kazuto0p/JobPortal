@@ -130,14 +130,19 @@ export const getApplicationsForRecruiter = async (req, res) => {
         select: "jobTitle company location postedByEmail",
         match: { postedByEmail: recruiterEmail },
       })
+      .select('jobId jobSeekerEmail recruiterEmail status resume createdAt updatedAt')
       .lean();
 
     console.log('Found applications:', {
       count: applications.length,
-      validCount: applications.filter(app => app.jobId).length
+      validCount: applications.filter(app => app.jobId).length,
+      sampleResume: applications[0]?.resume ? 'Resume exists' : 'No resume'
     });
 
-    const validApplications = applications.filter((app) => app.jobId);
+    const validApplications = applications.filter((app) => app.jobId).map(app => ({
+      ...app,
+      hasResume: !!app.resume && !!app.resume.path
+    }));
 
     if (validApplications.length === 0) {
       return res.status(200).json({ message: "No applications found", applications: [] });
@@ -218,11 +223,17 @@ export const getApplicationsForJobSeeker = async (req, res) => {
 
 export const getResume = async (req, res) => {
   try {
-    const { applicationId } = req.params;
+    const { id } = req.params;
 
-    const application = await Application.findById(applicationId);
+    // Find the application
+    const application = await Application.findById(id);
     if (!application) {
       return res.status(404).json({ message: "Application not found" });
+    }
+
+    // Check if the requester is the recruiter for this application
+    if (req.user.email !== application.recruiterEmail) {
+      return res.status(403).json({ message: "You don't have permission to access this resume" });
     }
 
     // Check if resume exists
@@ -230,20 +241,10 @@ export const getResume = async (req, res) => {
       return res.status(404).json({ message: "No resume found for this application" });
     }
 
-    // Check if the requester is the recruiter
-    if (application.recruiterEmail !== req.user.email) {
-      return res.status(403).json({ message: "You don't have permission to view this resume" });
-    }
-
-    // Check if file exists
-    if (!fs.existsSync(application.resume.path)) {
-      return res.status(404).json({ message: "Resume file not found" });
-    }
-
     // Send the file
-    res.sendFile(path.resolve(application.resume.path));
+    res.download(application.resume.path, application.resume.originalname);
   } catch (error) {
-    console.error("Error fetching resume:", error);
-    res.status(500).json({ message: "Server error while fetching resume" });
+    console.error("Error downloading resume:", error);
+    res.status(500).json({ message: "Error downloading resume" });
   }
 };

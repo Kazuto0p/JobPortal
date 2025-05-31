@@ -387,9 +387,14 @@ export async function updateProfile(req, res) {
     console.log('Updating profile for user:', id);
     console.log('Update data:', updates);
 
-    // If there's a file uploaded, add its path
-    if (req.file) {
-      updates.profilepicture = req.file.path;
+    // Handle file uploads
+    if (req.files) {
+      if (req.files.profilepicture) {
+        updates.profilepicture = req.files.profilepicture[0].path;
+      }
+      if (req.files.resume) {
+        updates.resume = req.files.resume[0].path;
+      }
     }
 
     // Find user first to preserve existing data
@@ -399,11 +404,10 @@ export async function updateProfile(req, res) {
       return res.status(404).json({ message: 'User not found' });
     }
 
- 
-    if (!updates.role) {
+    // Preserve the existing role if it's admin or if no new role is provided
+    if (existingUser.role === 'admin' || !updates.role) {
       updates.role = existingUser.role;
     }
-
 
     updates.profileComplete = true;
 

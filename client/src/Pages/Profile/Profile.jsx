@@ -41,6 +41,7 @@ const Profile = () => {
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -53,8 +54,78 @@ const Profile = () => {
     linkedin: '',
     github: '',
     portfolio: '',
-    profilepicture: null
+    profilepicture: null,
+    resume: null
   });
+
+  // Function to get file name from path
+  const getFileName = (path) => {
+    if (!path) return '';
+    return path.split('/').pop();
+  };
+
+  // Function to format date
+  const formatDate = (date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Function to download resume
+  const handleDownloadResume = async () => {
+    try {
+      const token = isAuthenticated ? await getAccessTokenSilently() : localStorage.getItem('token');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/uploads/${getFileName(userData.resume)}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        }
+      );
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', getFileName(userData.resume));
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error downloading resume:', error);
+      toast.error('Failed to download resume. Please try again.');
+    }
+  };
+
+  // Function to delete resume
+  const handleDeleteResume = async () => {
+    if (!window.confirm('Are you sure you want to delete your resume?')) return;
+
+    setIsDeleting(true);
+    try {
+      const token = isAuthenticated ? await getAccessTokenSilently() : localStorage.getItem('token');
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/users/profile/${userData._id}`,
+        { resume: null },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.status === 200) {
+        setUserData(prev => ({ ...prev, resume: null }));
+        setFormData(prev => ({ ...prev, resume: null }));
+        toast.success('Resume deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast.error('Failed to delete resume');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!userData) {
@@ -75,7 +146,8 @@ const Profile = () => {
       linkedin: userData.linkedin || '',
       github: userData.github || '',
       portfolio: userData.portfolio || '',
-      profilepicture: userData.profilepicture || null
+      profilepicture: userData.profilepicture || null,
+      resume: userData.resume || null
     });
   }, [userData, navigate]);
 
@@ -88,11 +160,11 @@ const Profile = () => {
   };
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
+    const { name, files } = e.target;
+    if (files[0]) {
       setFormData(prev => ({
         ...prev,
-        profilepicture: file
+        [name]: files[0]
       }));
     }
   };
@@ -119,10 +191,19 @@ const Profile = () => {
       
       // Append all text fields
       Object.keys(formData).forEach(key => {
-        if (key !== 'profilepicture' || formData[key] !== null) {
+        if (key !== 'profilepicture' && key !== 'resume' && formData[key] !== null) {
           formDataToSend.append(key, formData[key]);
         }
       });
+
+      // Add files if they exist
+      if (formData.profilepicture) {
+        formDataToSend.append('profilepicture', formData.profilepicture);
+      }
+      
+      if (formData.resume) {
+        formDataToSend.append('resume', formData.resume);
+      }
 
       // Add profileComplete flag
       formDataToSend.append('profileComplete', 'true');
@@ -147,9 +228,9 @@ const Profile = () => {
           navigate('/');
           return;
         }
-      } catch (newEndpointError) {
+      } catch (error) {
+        console.error('Error with new endpoint:', error);
         // If new endpoint fails, try the old endpoint
-        console.log('Trying fallback endpoint...');
         const response = await axios.put(
           `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}/updateProfile/${userData._id}`,
           formDataToSend,
@@ -173,7 +254,6 @@ const Profile = () => {
       const errorMessage = error.response?.data?.message || 'Failed to update profile';
       toast.error(errorMessage);
       
-      // If unauthorized, redirect to auth page
       if (error.response?.status === 401) {
         navigate('/auth');
       }
@@ -338,15 +418,62 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Profile Picture */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Profile Picture</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
+          {/* Profile Picture and Resume */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-gray-800">Documents</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Profile Picture</label>
+                <input
+                  type="file"
+                  name="profilepicture"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Resume</label>
+                {userData?.resume ? (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-sm text-gray-600">
+                      Current resume: {getFileName(userData.resume)}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Uploaded on: {formatDate(userData.updatedAt)}
+                    </p>
+                    <div className="flex space-x-2">
+                      <button
+                        type="button"
+                        onClick={handleDownloadResume}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Download
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDeleteResume}
+                        disabled={isDeleting}
+                        className="text-sm text-red-600 hover:text-red-800"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    name="resume"
+                    accept=".pdf,.doc,.docx,image/*"
+                    onChange={handleFileChange}
+                    className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                )}
+                <p className="mt-1 text-sm text-gray-500">Upload your resume (PDF, DOC, DOCX, or image)</p>
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}

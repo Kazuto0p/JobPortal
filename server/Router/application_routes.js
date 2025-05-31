@@ -14,8 +14,8 @@ const router = express.Router();
 // All application routes should be authenticated
 router.post("/apply", authenticateUser, upload.single("resume"), applyForJob);
 router.get("/recruiter/:recruiterEmail", authenticateUser, getApplicationsForRecruiter);
-router.patch("/:id", authenticateUser, updateApplicationStatus);
 router.get("/jobseeker/:jobSeekerEmail", authenticateUser, getApplicationsForJobSeeker);
-router.get("/:applicationId/resume", authenticateUser, getResume);
+router.patch("/:id", authenticateUser, updateApplicationStatus);
+router.get("/:id/resume", authenticateUser, getResume);
 
 export default router;
