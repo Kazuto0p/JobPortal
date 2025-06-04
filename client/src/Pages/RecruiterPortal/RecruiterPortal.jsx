@@ -5,12 +5,12 @@ import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../UserContext";
 
-// Create an axios instance with interceptors
+
 const api = axios.create({
   baseURL: 'http://localhost:3000'
 });
 
-// Add response interceptor for token refresh
+
 api.interceptors.response.use(
   (response) => {
     const newToken = response.headers['x-new-token'];
@@ -24,10 +24,10 @@ api.interceptors.response.use(
       const errorCode = error.response?.data?.code;
       
       if (errorCode === 'TOKEN_EXPIRED' || errorCode === 'TOKEN_MISSING') {
-        // Clear the invalid token
+       
         localStorage.removeItem('token');
         
-        // Redirect to auth page
+      
         window.location.href = '/auth';
         return Promise.reject(error);
       }
@@ -55,7 +55,7 @@ function RecruiterPortal() {
       hasStoredToken: !!localStorage.getItem('token')
     });
 
-    // If using Auth0, always try to get a fresh token first
+
     if (isAuthenticated && user) {
       try {
         console.log('Attempting to get fresh Auth0 token');
@@ -66,7 +66,7 @@ function RecruiterPortal() {
           }
         });
         console.log('Successfully got fresh Auth0 token');
-        // Store the token
+ 
         localStorage.setItem('token', token);
         return token;
       } catch (error) {
@@ -74,27 +74,26 @@ function RecruiterPortal() {
           message: error.message,
           stack: error.stack
         });
-        // If Auth0 token fails, try stored token
+
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
           console.log('Using stored token as fallback');
           return storedToken;
         }
-        // If no stored token, redirect to auth
+
         console.log('No stored token available, redirecting to auth');
         navigate('/auth');
         throw new Error("Authentication failed. Please log in again.");
       }
     }
     
-    // If not using Auth0, try regular token
     const token = localStorage.getItem('token');
     if (token) {
       console.log('Using stored regular token');
       return token;
     }
     
-    // If no token found, redirect to auth page
+  
     console.log('No token available, redirecting to auth');
     navigate('/auth');
     throw new Error('No authentication token found. Please log in.');
@@ -150,6 +149,7 @@ function RecruiterPortal() {
         });
         
         setApplications(res.data.applications || []);
+        // console.log(applications)
       } catch (error) {
         console.error("Error fetching applications:", {
           status: error.response?.status,
@@ -249,7 +249,7 @@ function RecruiterPortal() {
         }
       );
 
-      // Create blob URL and open in new tab
+
       const file = new Blob([response.data], { type: response.headers['content-type'] });
       const fileURL = URL.createObjectURL(file);
       window.open(fileURL, '_blank');
@@ -285,14 +285,14 @@ function RecruiterPortal() {
         }
       );
 
-      // Create a blob URL and trigger download
+
       const blob = new Blob([response.data], { 
         type: response.headers['content-type'] 
       });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       
-      // Get filename from Content-Disposition header or use default
+ 
       const contentDisposition = response.headers['content-disposition'];
       const filename = contentDisposition
         ? contentDisposition.split('filename=')[1].replace(/"/g, '')

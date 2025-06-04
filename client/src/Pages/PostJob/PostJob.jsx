@@ -27,7 +27,7 @@ const PostJob = () => {
   console.log("API URL:", import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
   console.log("UserContext data:", userData);
 
-  // Check if user is a recruiter
+  
   if (!isLoading && !userData && !isAuthenticated) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">

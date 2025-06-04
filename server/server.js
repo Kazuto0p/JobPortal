@@ -35,6 +35,8 @@ app.use(express.json());
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+console.log(path.join(__dirname,"uploads"));
+
 // Basic route for checking server status
 app.get('/', (req, res) => {
   res.send("Welcome to Kirito's backend setup!");

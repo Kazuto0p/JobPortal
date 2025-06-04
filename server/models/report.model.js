@@ -4,11 +4,11 @@ const reportSchema = new mongoose.Schema(
   {
     jobId: { type: mongoose.Schema.Types.ObjectId, ref: 'Job', required: true },
     reason: { type: String, required: true },
-    reportedBy: { type: String, required: true }, // email of reporter
+    reportedBy: { type: String, required: true }, 
     status: { type: String, enum: ['pending', 'reviewed', 'resolved'], default: 'pending' },
     adminNotes: { type: String },
-    jobTitle: { type: String, required: true }, // Store job title for quick reference
-    company: { type: String, required: true }, // Store company for quick reference
+    jobTitle: { type: String, required: true }, 
+    company: { type: String, required: true },
   },
   { timestamps: true }
 );

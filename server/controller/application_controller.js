@@ -3,11 +3,9 @@ import User from "../models/user.model.js";
 import Job from "../models/job.model.js";
 import path from 'path';
 import fs from 'fs';
-
 export const applyForJob = async (req, res) => {
   try {
     const { jobId, jobSeekerEmail } = req.body;
-    
 
     if (!jobId || !jobSeekerEmail) {
       return res.status(400).json({ message: "Job ID and jobseeker email are required" });
@@ -47,11 +45,22 @@ export const applyForJob = async (req, res) => {
     // Handle resume upload
     let resumeData = null;
     if (req.file) {
+      // If a new resume is uploaded, use it
       resumeData = {
         filename: req.file.filename,
         path: req.file.path,
         originalname: req.file.originalname,
         mimetype: req.file.mimetype
+      };
+    } else if (user.resume) {
+      // If no new resume is uploaded, use the resume from the user profile
+      const resumePath = user.resume;
+      const filename = path.basename(resumePath);
+      resumeData = {
+        filename: filename,
+        path: resumePath,
+        originalname: filename, // Use filename as originalname if unknown
+        mimetype: 'application/octet-stream' // Default mimetype if unknown
       };
     }
 

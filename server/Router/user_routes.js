@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    // Keep original file extension and add unique suffix
+   
     const ext = path.extname(file.originalname);
     cb(null, file.fieldname + '-' + uniqueSuffix + ext);
   }
@@ -24,14 +24,14 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Serve uploaded files
+
 router.get('/uploads/:filename', authenticateUser, (req, res) => {
   const { filename } = req.params;
   const filePath = path.join(__dirname, '..', 'uploads', filename);
   res.sendFile(filePath);
 });
 
-// Public routes
+
 router.post("/signup", Signup);
 router.post("/authsignup", authsignup);
 router.post("/login", logIn);
